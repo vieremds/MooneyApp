@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Hello, {{ current_user.username }}!</h1>
+    {% for account in accounts %}
+    <div><p>{{ account.owner.username }} holds: <b>{{ account.name }}</b></p></div>
+    {% endfor %}
+{% endblock %}
