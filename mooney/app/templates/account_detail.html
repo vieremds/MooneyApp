@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% import 'bootstrap/wtf.html' as wtf %}
+
+{% block app_content %}
+<h1>{{ title }}</h1>
+<div class="card-group">
+  <div class="card">
+      <h6 class="card-header">Balance</h6>
+      <div class="card-body">
+        <h3 class="text-center">€ {{ balance }}</h3>
+      </div>
+      <div class="card-footer">
+        <small class="text-muted">Current, from all times</small>
+      </div>
+    </div>
+    <div class="card">
+      <h6 class="card-header">Recon</h6>
+      <div class="card-body">
+        <form action="" method="post" novalidate>
+          {{ form.hidden_tag() }}
+        <h3 class="text-center">€ {{ form.amount(size=8, onchange="submit()") }}</h3>
+        </form>
+      </div>
+      <div class="card-footer">
+        <small class="text-muted">Point in time, for reconciliation</small>
+      </div>
+    </div>
+    <div class="card">
+      <h6 class="card-header">To Reconcile</h6>
+      <div class="card-body">
+        <h3 class="text-center">€ {{ diff }}    /   {{ diff_p }}%</h3>
+      </div>
+      <div class="card-footer">
+        <small class="text-muted">Gap in account transactions</small>
+      </div>
+    </div>
+</div>
+<br>
+<form action="" method="post">
+  {{ form.hidden_tag() }}
+  <div class="col-md-2">
+      {{ form.start_date.label }}
+      {{ form.start_date(size=32, onchange="submit()") }}
+  </div>
+  <div class="col-md-2">
+    {{ form.end_date.label }}
+    {{ form.end_date(size=32, onchange="submit()") }}
+  </div>
+  <div class="col-md-2">
+    <br>
+    <a href="{{ url_for('add_transaction') }}" class="btn btn-primary">Add Transaction</a>
+  </div>
+  <div class="col-md-2">
+    <br>
+    <a href="{{ url_for('add_transfer') }}" class="btn btn-primary">Add Transfer</a>
+  </div>
+  {% if type %}
+    <div class="col-md-2">
+      <br>
+      <a href="{{ url_for('update_balance') }}" class="btn btn-primary">Update Balance</a>
+    </div>
+  {% endif %}
+</form>
+<br>
+<br>
+<br>
+<br>
+<table id="data" class="table table-striped">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Amount</th>
+        <th>Category</th>
+        <th>Tag</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for trx in account_trx %}
+      <tr>
+          <td>{{ trx.date }}</td>    
+          <td>{{ trx.amount }}</td> 
+          <td>{{ trx.name }}</td>
+          <td>{{ trx.tag }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <br>
+  <br>
+{% endblock %}
+{% block scripts %}
+  <script>
+    $(document).ready(function () {
+      $('#data').DataTable();
+    });
+  </script>
+{% endblock %}
