@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% import 'bootstrap/wtf.html' as wtf %}
+
+{% block app_content %}
+    <h1> {{ title }} </h1>
+    <div class="card-group">
+        {% for k,v in balance_by_type.items() %}
+        <div class="card">
+            <h5 class="card-header">{{ k }}</h5>
+            <div class="card-body">
+              <h3 class="text-center">€ {{ v }}</h3>
+            </div>
+            <div class="card-footer">
+              <small class="text-muted">Current, from all times</small>
+            </div>
+          </div>
+        {% endfor %}
+    </div>
+    <br>
+    <div>
+        <form action="" method="post">
+          {{ form.hidden_tag() }}
+          <div class="col-md-2">
+            {{ form.start_date.label }}
+            {{ form.start_date(size=32) }}
+          </div>
+          <div class="col-md-2">
+            {{ form.end_date.label }}
+            {{ form.end_date(size=32, onchange="submit()") }}
+          </div>
+          <div class="col-md-4" style="display: flex">
+            {{ form.type.label }}
+            {{ form.type(size=3, onchange="submit()") }}
+          </div>
+        </form>
+        <br>
+        <br>
+      </div>
+      <div>
+        <br>
+        <br>
+        <table id="data" class="table table-striped">
+            <thead>
+                <tr>
+                  <th>Accounts</th>
+                {% for m in month_range %}
+                    <th>{{ m }}</th>
+                {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+            {% set i = namespace(value=0) %}
+            {% for acc in acc_range %}
+              <tr>
+                <td>{{ acc }}</td>
+                {% for m in month_range %}
+                  <td>{{ acc_trimmed[acc][m] }}</td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+  </div>
+  <br>
+  <br>
+{% endblock %}
+{% block scripts %}
+  <script>
+  $(document).ready(function () {
+      $('#data').DataTable();
+  });
+  </script>
+{% endblock %}

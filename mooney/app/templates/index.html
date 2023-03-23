@@ -1,8 +1,80 @@
 {% extends "base.html" %}
+{% import 'bootstrap/wtf.html' as wtf %}
 
-{% block content %}
+{% block app_content %}
     <h1>Hello, {{ current_user.username }}!</h1>
-    {% for account in accounts %}
-    <div><p>{{ account.owner.username }} holds: <b>{{ account.name }}</b></p></div>
-    {% endfor %}
+    <div class="card-group">
+        {% for k,v in balance_by_type.items() %}
+        <div class="card">
+            <h5 class="card-header">{{ k }}</h5>
+            <div class="card-body">
+              <h3 class="text-center">€ {{ v }}</h3>
+            </div>
+            <div class="card-footer">
+              <small class="text-muted">Current, from all times</small>
+            </div>
+          </div>
+        {% endfor %}
+    </div>
+    <br>
+    <div>
+      <form action="" method="post">
+        {{ form.hidden_tag() }}
+        <div class="col-md-2">
+          {{ form.start_date.label }}
+          {{ form.start_date(size=32) }}
+        </div>
+        <div class="col-md-2">
+          {{ form.end_date.label }}
+          {{ form.end_date(size=32, onchange="submit()") }}
+        </div>
+        <div class="col-md-4" style="display: flex">
+          {{ form.type.label }}
+          {{ form.type(size=3, onchange="submit()") }}
+        </div>
+      </form>
+      <br>
+      <br>
+    </div>
+    <div>
+      <br>
+      <br>
+      <table id="data" class="table table-striped">
+          <thead>
+            <tr>
+              <th rowspan=2>Category</th>
+              <th rowspan=2>Budget</th>
+              <th colspan= {{range_desc|count}}>Amount</th>
+            </tr>
+            <tr>  
+              {% for i in range_desc %}
+              <th>{{ i }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% set i = namespace(value=0) %}
+            {% for cat in cat_range %}
+              <tr>
+                <td>{{ cat }}</td>    
+                <td>{{ bdgt_range[i.value] }}</td> 
+                {% set i.value = i.value + 1 %}  
+                {% set trx_list = trx_by_cat.get(cat) %}
+                {% for sum in trx_list %}
+                  <td>{{ sum|default('0.00') }}</td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+      </table>
+    </div>
+    <br>
+    <br>
+{% endblock %}
+{% block scripts %}
+    <script>
+    $(document).ready(function () {
+        $('#data').DataTable();
+    });
+    </script>
 {% endblock %}

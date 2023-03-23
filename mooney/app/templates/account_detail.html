@@ -54,7 +54,7 @@
     <br>
     <a href="{{ url_for('add_transfer') }}" class="btn btn-primary">Add Transfer</a>
   </div>
-  {% if type %}
+  {% if account_type == 'Investment' %}
     <div class="col-md-2">
       <br>
       <a href="{{ url_for('update_balance') }}" class="btn btn-primary">Update Balance</a>

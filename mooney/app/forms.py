@@ -1,7 +1,11 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField, FloatField, SelectField
+from wtforms import StringField, PasswordField, BooleanField, SubmitField, FloatField, SelectField, DateField, SelectMultipleField, RadioField
+from wtforms_sqlalchemy.fields import QuerySelectField
 from wtforms.validators import ValidationError, DataRequired, Email, EqualTo, NumberRange
-from app.models import User, Account
+from app.models import User, Account, Category, account_choices, category_choices, inv_acc_choices
+import calendar
+from datetime import datetime, date
+from config import Config
 
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
@@ -30,14 +34,67 @@ class RegistrationForm(FlaskForm):
 class AddAccountForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired()])
     type = SelectField('Type', validators=[DataRequired()], 
-        choices=[('Giro', 'Giro'), ('Liability', 'Liability'), ('Investment', 'Investment')])
+        choices=Config.ACCOUNT_TYPES)
     currency = SelectField('Currency', validators=[DataRequired()],
-        choices=[('EUR', 'Euro'), ('BRL', 'Brasilian-Real'), ('USD', 'Dollar'), ('GBP','British-Pounds')])
+        choices=Config.CURRENCIES)
     description = StringField('Description')
     start_balance = FloatField('Start_Balance')
     submit = SubmitField('Add')
-
     def validate_name(self, name):
         account = Account.query.filter_by(name=name.data).first()
         if account is not None:
             raise ValidationError('Please use a different account name.')
+        
+class CategoryForm(FlaskForm):
+    name = StringField('Name', validators=[DataRequired()])
+    type = SelectField('Type', validators=[DataRequired()], 
+        choices=[('Income'), ('Expense')])
+    description = StringField('Description')
+    budget = FloatField('Budget')
+    icon = StringField('Icon')
+    submit = SubmitField('Save')
+
+    def validate_name(self, name):
+        category = Category.query.filter_by(name=name.data).first()
+        if category is not None:
+            raise ValidationError('Please use a different category name.')
+
+
+class TransactionForm(FlaskForm):
+    account = QuerySelectField(query_factory=account_choices, get_label='name')
+    category = QuerySelectField(query_factory=category_choices, get_label='name')
+    amount = FloatField('Amount')
+    currency = StringField('Currency')
+    date = DateField('Date')
+    tag = StringField('Tag')
+    description = StringField('Description')
+    submit = SubmitField('Save')
+
+class TransferForm(FlaskForm):
+    source_account = QuerySelectField(query_factory=account_choices, get_label='name')
+    target_account = QuerySelectField(query_factory=account_choices, get_label='name')
+    date = DateField('Date')
+    amount = FloatField('Amount')
+    currency = StringField('Currency')
+    description = StringField('Description')
+    submit = SubmitField('Save')
+
+class SelectDateForm(FlaskForm):
+    start_date = DateField('Start Date', default=date.today().replace(day = 1))
+    end_date = DateField('End Date', default=date.today().replace(day = calendar.monthrange(date.today().year, date.today().month)[1]))
+    amount = FloatField('Amount')
+    submit = SubmitField('Go')
+
+class DateTypeForm(FlaskForm):
+    start_date = DateField('Start Date', default=date.today().replace(day = 1))
+    end_date = DateField('End Date', default=date.today().replace(day = calendar.monthrange(date.today().year, date.today().month)[1]))
+    type = SelectMultipleField('Type', id='type', validators=[DataRequired()], 
+        choices=Config.ACCOUNT_TYPES)
+    submit = SubmitField('Go')
+
+class UpdateBalanceForm(FlaskForm):
+    account = QuerySelectField(query_factory=inv_acc_choices, get_label='name')
+    amount = FloatField('Amount', validators=[DataRequired()])
+    date = DateField('Date', validators=[DataRequired()])
+    description = StringField('Description')
+    submit = SubmitField('Save')
