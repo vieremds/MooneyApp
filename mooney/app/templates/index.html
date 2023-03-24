@@ -2,9 +2,11 @@
 {% import 'bootstrap/wtf.html' as wtf %}
 
 {% block app_content %}
-    <h1>Hello, {{ current_user.username }}!</h1>
+    <!--h1>Hello, {{ current_user.username }}! This is your Overview</h1!-->
     <div class="card-group">
+        {% set y = namespace(value=0) %}
         {% for k,v in balance_by_type.items() %}
+        {% set y.value = y.value + v %}
         <div class="card">
             <h5 class="card-header">{{ k }}</h5>
             <div class="card-body">
@@ -15,6 +17,15 @@
             </div>
           </div>
         {% endfor %}
+        <div class="card">
+          <h5 class="card-header">Overall</h5>
+          <div class="card-body">
+            <h3 class="text-center">€ {{ y.value }}</h3>
+          </div>
+          <div class="card-footer">
+            <small class="text-muted">Current, from all times</small>
+          </div>
+        </div>
     </div>
     <br>
     <div>
@@ -28,9 +39,9 @@
           {{ form.end_date.label }}
           {{ form.end_date(size=32, onchange="submit()") }}
         </div>
-        <div class="col-md-4" style="display: flex">
-          {{ form.type.label }}
-          {{ form.type(size=3, onchange="submit()") }}
+        <div class="col-md-3">
+          {{ form.type.label }}<br>
+          {{ form.type(class_="select2", style="width: 100%",onchange="submit()") }}<br>
         </div>
       </form>
       <br>
@@ -44,27 +55,35 @@
             <tr>
               <th rowspan=2>Category</th>
               <th rowspan=2>Budget</th>
-              <th colspan= {{range_desc|count}}>Amount</th>
+              {% if range_count %}
+                <th colspan= {{range_desc|count}}>Amount</th>
+              {% else %}
+                <th colspan=2>Amount</th>
+              {% endif %}
             </tr>
-            <tr>  
-              {% for i in range_desc %}
-              <th>{{ i }}</th>
-              {% endfor %}
+            <tr>
+              {% if range_desc %}  
+                {% for i in range_desc %}
+                <th>{{ i }}</th>
+                {% endfor %}
+              {% endif %}
             </tr>
           </thead>
           <tbody>
-            {% set i = namespace(value=0) %}
-            {% for cat in cat_range %}
-              <tr>
-                <td>{{ cat }}</td>    
-                <td>{{ bdgt_range[i.value] }}</td> 
-                {% set i.value = i.value + 1 %}  
-                {% set trx_list = trx_by_cat.get(cat) %}
-                {% for sum in trx_list %}
-                  <td>{{ sum|default('0.00') }}</td>
-                {% endfor %}
-              </tr>
-            {% endfor %}
+            {% if cat_range %}  
+              {% set i = namespace(value=0) %}
+              {% for cat in cat_range %}
+                <tr>
+                  <td>{{ cat }}</td>    
+                  <td>{{ bdgt_range[i.value] }}</td> 
+                  {% set i.value = i.value + 1 %}  
+                  {% set trx_list = trx_by_cat.get(cat) %}
+                  {% for sum in trx_list %}
+                    <td>{{ sum|default('0.00') }}</td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            {% endif %}
           </tbody>
       </table>
     </div>
@@ -72,6 +91,13 @@
     <br>
 {% endblock %}
 {% block scripts %}
+    <script type="text/javascript">
+      $(document).ready(function() {
+        $('.select2').select2({
+       placeholder: 'Select Type',
+});
+      });
+    </script>
     <script>
     $(document).ready(function () {
         $('#data').DataTable();

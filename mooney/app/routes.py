@@ -1,12 +1,15 @@
 from flask import render_template, flash, redirect, url_for, request, session
 from app import app, db
-from app.forms import LoginForm, RegistrationForm, AddAccountForm, CategoryForm, TransactionForm, TransferForm, SelectDateForm, DateTypeForm, UpdateBalanceForm
+from app.forms import LoginForm, RegistrationForm, AddAccountForm, CategoryForm, TransactionForm, TransferForm, SelectDateForm, DateTypeForm, UpdateBalanceForm, DateAccountForm
 from flask_login import current_user, login_user, logout_user, login_required
 from app.models import User, Account, Category, Transaction, Transfer
 from werkzeug.urls import url_parse
 from sqlalchemy import func
 from config import Config
 import pandas as pd 
+import json
+import collections
+from .func import get_current_balance
 
 @app.route('/')
 @app.route('/index', methods=['GET', 'POST'])
@@ -14,21 +17,7 @@ import pandas as pd
 def index():
     form = DateTypeForm()
 
-    types = Config.ACCOUNT_TYPES
-    balance_by_type = {}
-
-    for type in types:
-        account = [id[0] for id in db.session.query(Account.id).filter_by(type=type).filter_by(user_id=current_user.id).all()]
-
-        #BALANCE ON TOP STUFF
-        transaction_balance = Transaction.query.filter(Transaction.account.in_(account)).with_entities(func.sum(Transaction.amount).label('total')).first().total
-        trf_negative = Transfer.query.filter(Transfer.source_account.in_(account)).with_entities(func.sum(Transfer.amount).label('total')).first().total
-        trf_positive = Transfer.query.filter(Transfer.target_account.in_(account)).with_entities(func.sum(Transfer.amount).label('total')).first().total
-        start_balance = Account.query.filter(Account.id.in_(account)).with_entities(func.sum(Account.start_balance).label('total')).first().total
-
-        transfer_balance = float(trf_positive or 0.0) - float(trf_negative or 0.0)
-        balance = float(start_balance or 0.0) + float(transaction_balance or 0.0) + transfer_balance
-        balance_by_type[type] = balance
+    balance_by_type = get_current_balance()
   
     range_desc = []
     cat_range = []
@@ -196,7 +185,6 @@ def account_detail(account):
 
     account_ids = db.session.query(Account.id).filter_by(name=account).first()
     account_type = db.session.query(Account.type).filter_by(name=account).first()
-    print(account_type[0])
     #ACCOUNT TYPE IS BEING PASSED LIKE THIS ('Investment',)
     
     account_trx = db.session.query(Transaction.amount.label('amount'), Transaction.date.label('date'), Category.name.label('name'), Transaction.tag.label('tag')).join(
@@ -227,17 +215,27 @@ def update_balance():
     form = UpdateBalanceForm()
 
     if form.validate_on_submit():
-        account_ =  Account.query.filter_by(user_id=current_user.id).filter_by(name=form.account.data).first()
+        account_ =  Account.query.filter_by(user_id=current_user.id).filter_by(name=form.account.data.name).first()
         
-        new = (form.date.data, form.amount.data, form.description.data)
-        
+        new = {}
+        d = form.date.data
+        d = d.strftime("%Y-%m")
+        new[d] = []
+        new[d] = [form.amount.data,
+                                form.description.data]
+
         if account_.balance_archive:
-            account_.balance_archive.add(new)
+            for k, v in json.loads(account_.balance_archive).items():
+                new[k] = v
+            a = json.dumps(new, default=str)
+            account_.balance_archive = a
         else:
-            account_.balance_archive = {new}
+            a = json.dumps(new, default=str)
+            account_.balance_archive = a
+        
         db.session.commit()
         flash('A balance was just added!')
-        return redirect(url_for('account_detail'))
+        return redirect(url_for('balance_view'))
 
     return render_template('update_balance.html', title='Update Balance', form=form)
 
@@ -248,21 +246,7 @@ def balance_view():
     month_range = []
     acc_range = []
     
-    #BALANCE ON TOP STUFF / CURRENT BALANCE
-    types = Config.ACCOUNT_TYPES
-    balance_by_type = {}
-
-    for type in types:
-        account = [id[0] for id in db.session.query(Account.id).filter_by(type=type).filter_by(user_id=current_user.id).all()]
-
-        transaction_balance = Transaction.query.filter(Transaction.account.in_(account)).with_entities(func.sum(Transaction.amount).label('total')).first().total
-        trf_negative = Transfer.query.filter(Transfer.source_account.in_(account)).with_entities(func.sum(Transfer.amount).label('total')).first().total
-        trf_positive = Transfer.query.filter(Transfer.target_account.in_(account)).with_entities(func.sum(Transfer.amount).label('total')).first().total
-        start_balance = Account.query.filter(Account.id.in_(account)).with_entities(func.sum(Account.start_balance).label('total')).first().total
-
-        transfer_balance = float(trf_positive or 0.0) - float(trf_negative or 0.0)
-        balance = float(start_balance or 0.0) + float(transaction_balance or 0.0) + transfer_balance
-        balance_by_type[type] = balance
+    balance_by_type = get_current_balance()
 
     #BALANCES EVOLUTION MONTHLY BASED ON FORM SELECTION
     if form.validate_on_submit():
@@ -280,26 +264,27 @@ def balance_view():
                 acc_range.append(acc.name)
 
             if acc.type == 'Investment':
-                #acc_list = db.session.query(Account.name, Account.start_balance, Account.balance_archive, Account.created_at).filter(Account.id.in_([acc.id])).all()
-                
-                #Structure {N26:[03-2022:1000, 04-2023:2000, 05-2023:2500]}
-                #for acc_ in acc_list:
                 for idx, m in enumerate(month_range): 
                     acc_trimmed[acc.name][m] = acc.start_balance
-                    if acc.balance_archive:
-                        for k in acc.balance_archive:
-                            if m == func.strftime("%Y-%m", k[0]):
-                                acc_trimmed[acc.name][m] = k[1]
-                            else:
-                                if idx-1 >= 0:
-                                    acc_trimmed[acc.name][m] = acc_trimmed[acc.name][month_range[idx-1]]
+                    
+                    try:
+                        acc_= json.loads(acc.balance_archive)
+                        acc_= collections.OrderedDict(sorted(acc_.items()))
+                    except:
+                        acc_= False
+
+                    if acc_:
+                        #{2023-03-23: [1000, "balbalba"], 2023-04-23: [1000, "balbalba"]}
+                        if m in acc_:
+                            acc_trimmed[acc.name][m] = acc_[m][0]
+                        else:
+                            if idx-1 >= 0:
+                                acc_trimmed[acc.name][m] = acc_trimmed[acc.name][month_range[idx-1]]
 
             else:
                 transaction_balance = db.session.query(func.sum(Transaction.amount), 
                     func.strftime("%Y-%m", Transaction.date).label('month')).filter(Transaction.account.in_([acc.id])).group_by(func.strftime("%Y-%m",
                     Transaction.date).label('month')).all()
-                
-                print(transaction_balance)
 
                 trf_negative = db.session.query(func.sum(Transfer.amount),
                     func.strftime("%Y-%m", Transfer.date).label('month')).filter(Transfer.source_account.in_([acc.id])).group_by(func.strftime("%Y-%m",
@@ -343,7 +328,6 @@ def balance_view():
                     else: 
                         acc_trimmed[acc.name][m] = balance
                     #Structure {N26: [03-2022:1000, 04-2023:2000, 05-2023:2500]}
-        print(acc_trimmed)
 
         return render_template('balance_view.html', title='Balance View', form=form, balance_by_type=balance_by_type, month_range=month_range, acc_range=acc_range, acc_trimmed=acc_trimmed)     
     return render_template('balance_view.html', title='Balance View', form=form,balance_by_type=balance_by_type, month_range=month_range, acc_range=acc_range)
@@ -357,3 +341,21 @@ def balance_view():
 #THERE ARE TRANSFERS, BUT THESE ARE NOT INCLUDED IN THE BALANCE AS 
 #BALANCE ARCHIVE IS THE SINGLE SOURCE OF TRUTH FOR INVESTMENT ACCOUNTS BALANCE
 
+@app.route('/transactions', methods=['GET', 'POST'])
+@login_required
+def transactions():
+    form = DateAccountForm()
+    
+    accounts = [id[0] for id in db.session.query(Account.id).filter_by(user_id=current_user.id).all()]
+    
+    if form.validate_on_submit():
+        accounts = [form.account.data.id]
+
+    transactions = db.session.query(Transaction.date, Transaction.amount, Account.name, Category.name.label('cat'), Transaction.tag, Transaction.description, Transaction.created_at).join(
+        Account, Account.id == Transaction.account).join(
+        Category, Category.id == Transaction.category).filter(Transaction.account.in_(accounts)).filter(
+    Transaction.date.between(form.start_date.data, form.end_date.data)).order_by(Transaction.date.desc()).all()
+
+    print(transactions)
+
+    return render_template('transactions.html', title='Transactions', form=form, transactions=transactions)

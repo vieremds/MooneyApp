@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% import 'bootstrap/wtf.html' as wtf %}
+
+{% block app_content %}
+<div>
+    <form action="" method="post">
+      {{ form.hidden_tag() }}
+      <div class="col-md-2">
+        {{ form.start_date.label }}
+        {{ form.start_date(size=32) }}
+      </div>
+      <div class="col-md-2">
+        {{ form.end_date.label }}
+        {{ form.end_date(size=32, onchange="submit()") }}
+      </div>
+      <div class="col-md-3">
+        {{ form.account.label }}<br>
+        {{ form.account(class_="select2", style="width: 100%",onchange="submit()") }}<br>
+      </div>
+    </form>
+    <br>
+    <br>
+  </div>
+  <div>
+    <br>
+    <br>
+    <table id="data" class="table table-striped">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Account</th>
+                <th>Category</th>
+                <th>Tag</th>
+                <th>Description</th>
+                <th>Created_At</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for trx in transactions %}
+            <tr>
+            <td>{{ trx.date }}</td>
+            <td>{{ trx.amount }}</td>
+            <td>{{ trx.name }}</td>
+            <td>{{ trx.cat }}</td>
+            <td>{{ trx.tag }}</td>
+            <td>{{ trx.description }}</td>
+            <td>{{ trx.created_at }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+  </div>
+
+{% endblock %}
+{% block scripts %}
+<script type="text/javascript">
+    $(document).ready(function() {
+        $('.select2').select2({
+            placeholder: 'Select Type',
+        });
+    });
+</script>
+<script>
+    $(document).ready(function () {
+        $('#data').DataTable();
+    });
+</script>
+{% endblock %}

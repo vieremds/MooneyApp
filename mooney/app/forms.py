@@ -2,6 +2,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField, FloatField, SelectField, DateField, SelectMultipleField, RadioField
 from wtforms_sqlalchemy.fields import QuerySelectField
 from wtforms.validators import ValidationError, DataRequired, Email, EqualTo, NumberRange
+from wtforms.widgets.core import Select
 from app.models import User, Account, Category, account_choices, category_choices, inv_acc_choices
 import calendar
 from datetime import datetime, date
@@ -64,7 +65,8 @@ class TransactionForm(FlaskForm):
     account = QuerySelectField(query_factory=account_choices, get_label='name')
     category = QuerySelectField(query_factory=category_choices, get_label='name')
     amount = FloatField('Amount')
-    currency = StringField('Currency')
+    currency = SelectField('Currency', validators=[DataRequired()],
+        choices=Config.CURRENCIES)
     date = DateField('Date')
     tag = StringField('Tag')
     description = StringField('Description')
@@ -75,7 +77,8 @@ class TransferForm(FlaskForm):
     target_account = QuerySelectField(query_factory=account_choices, get_label='name')
     date = DateField('Date')
     amount = FloatField('Amount')
-    currency = StringField('Currency')
+    currency = SelectField('Currency', validators=[DataRequired()],
+        choices=Config.CURRENCIES)
     description = StringField('Description')
     submit = SubmitField('Save')
 
@@ -90,6 +93,12 @@ class DateTypeForm(FlaskForm):
     end_date = DateField('End Date', default=date.today().replace(day = calendar.monthrange(date.today().year, date.today().month)[1]))
     type = SelectMultipleField('Type', id='type', validators=[DataRequired()], 
         choices=Config.ACCOUNT_TYPES)
+    submit = SubmitField('Go')
+
+class DateAccountForm(FlaskForm):
+    start_date = DateField('Start Date', default=date.today().replace(day = 1))
+    end_date = DateField('End Date', default=date.today().replace(day = calendar.monthrange(date.today().year, date.today().month)[1]))
+    account = QuerySelectField(query_factory=account_choices, get_label='name')
     submit = SubmitField('Go')
 
 class UpdateBalanceForm(FlaskForm):
