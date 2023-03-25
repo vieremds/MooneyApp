@@ -13,7 +13,7 @@
       </div>
       <div class="card-body">
         <h5 class="card-title">{{ account.type }}</h5>
-        <a href="{{ url_for('account_detail', account=account.name) }}" class="btn btn-primary">{{ account.balance }}</a>
+        <a href="{{ url_for('account_detail', account=account.name) }}" class="btn btn-primary">{{ "€ %.2f" % account.balance }}</a>
       </div>
     </div>
     <br>
@@ -23,15 +23,11 @@
 <br>
 <br>
 <div class="row">
-  <div class="col-2">
-    <div class="float-right">
+  <div class="col-md-4"></div>
+  <div class="col-md-4"></div>
+  <div class="col-md-4">
       <a href="{{ url_for('add_account') }}" class="btn btn-primary">Add Account</a>
-    </div>
-  </div>
-  <div class="col-2">
-    <div class="float-right">
       <a href="{{ url_for('add_transfer') }}" class="btn btn-primary">Add Transfer</a>
-    </div>
   </div>
 </div>
 <br>  
