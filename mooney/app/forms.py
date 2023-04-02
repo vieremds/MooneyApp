@@ -40,6 +40,7 @@ class AddAccountForm(FlaskForm):
         choices=Config.CURRENCIES)
     description = StringField('Description')
     start_balance = FloatField('Start_Balance')
+    balance_date = DateField('Balance_Date')
     submit = SubmitField('Add')
     def validate_name(self, name):
         account = Account.query.filter_by(name=name.data).first()

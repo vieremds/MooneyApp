@@ -98,7 +98,7 @@ def add_account():
     if form.validate_on_submit():
         account = Account(name=form.name.data, type=form.type.data, currency=form.currency.data,
                        description=form.description.data, start_balance=form.start_balance.data, 
-                       user_id=current_user.id)
+                       balance_date=form.balance_date.data, user_id=current_user.id)
         db.session.add(account)
         db.session.commit()
         flash('An account was just added!')

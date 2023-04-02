@@ -23,13 +23,14 @@ class User(UserMixin, db.Model):
 
 class Account(db.Model):
     id            = db.Column(db.Integer, primary_key=True)
-    name  = db.Column(db.String(64), unique=True)
+    name  = db.Column(db.String(64), unique=False)
     type  = db.Column(db.String(32), unique=False)
     currency = db.Column(db.String(16), unique=False)
     description   = db.Column(db.String(255), nullable=True)
     created_at    = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     last_modified = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     start_balance = db.Column(db.Float(64), default=0.00)
+    balance_date   = db.Column(db.Date, index=True, default=datetime.today())
     user_id       = db.Column(db.Integer, db.ForeignKey('user.id'))
     balance_archive = db.Column(db.String(), nullable=True)
 
@@ -42,7 +43,7 @@ def load_user(id):
 
 class Category(db.Model):
     id            = db.Column(db.Integer, primary_key=True)
-    name  = db.Column(db.String(64), unique=True)
+    name  = db.Column(db.String(64), unique=False)
     type  = db.Column(db.String(32), unique=False)
     description   = db.Column(db.String(255), nullable=True)
     competence = db.Column(db.String(32), unique=False, default='Monthly')
