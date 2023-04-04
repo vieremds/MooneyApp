@@ -9,7 +9,7 @@ from config import Config
 import pandas as pd 
 import json
 import collections
-from .func import get_current_balance
+from .func import get_balance_by_type, get_single_balance
 
 @app.route('/')
 @app.route('/index', methods=['GET', 'POST'])
@@ -17,7 +17,7 @@ from .func import get_current_balance
 def index():
     form = DateTypeForm()
 
-    balance_by_type = get_current_balance()
+    balance_by_type = get_balance_by_type()
   
     range_desc = []
     cat_range = []
@@ -109,15 +109,8 @@ def add_account():
 @login_required
 def accounts():
     accounts = Account.query.filter_by(user_id=current_user.id).all()
-    for account in accounts: 
-        transaction_balance = Transaction.query.filter_by(account=account.id).with_entities(func.sum(Transaction.amount).label('total')).first().total
-        trf_negative = Transfer.query.filter_by(source_account=account.id).with_entities(func.sum(Transfer.amount).label('total')).first().total
-        trf_positive = Transfer.query.filter_by(target_account=account.id).with_entities(func.sum(Transfer.amount).label('total')).first().total
-    #think about transaction signs
-        transfer_balance = float(trf_positive or 0.0) - float(trf_negative or 0.0)
-        balance = account.start_balance + float(transaction_balance or 0.0) + transfer_balance
-        account.balance = balance
-    #think about filters
+    for account in accounts:       
+        account.balance = get_single_balance(account)
     return render_template('accounts.html', title='Accounts', accounts=accounts)
 
 @app.route('/add_category', methods=['GET', 'POST'])
@@ -183,22 +176,14 @@ def add_transfer():
 def account_detail(account):
     form = SelectDateForm()
 
-    account_ids = db.session.query(Account.id).filter_by(name=account).first()
-    account_type = db.session.query(Account.type).filter_by(name=account).first()
-    #ACCOUNT TYPE IS BEING PASSED LIKE THIS ('Investment',)
-    
+    account_ = Account.query.filter_by(name=account).filter_by(user_id=current_user.id).first()
+ 
     account_trx = db.session.query(Transaction.amount.label('amount'), Transaction.date.label('date'), Category.name.label('name'), Transaction.tag.label('tag')).join(
-        Category, Category.id == Transaction.category).filter(Transaction.account.in_(account_ids)).filter(
+        Category, Category.id == Transaction.category).filter(Transaction.account.in_([account_.id])).filter(
         Transaction.date.between(form.start_date.data, form.end_date.data)).order_by(Transaction.date.desc()).all()
-
-    transaction_balance = Transaction.query.filter(Transaction.account.in_(account_ids)).with_entities(func.sum(Transaction.amount).label('total')).first().total
-    trf_negative = Transfer.query.filter(Transfer.source_account.in_(account_ids)).with_entities(func.sum(Transfer.amount).label('total')).first().total
-    trf_positive = Transfer.query.filter(Transfer.target_account.in_(account_ids)).with_entities(func.sum(Transfer.amount).label('total')).first().total
-    start_balance = Account.query.filter(Account.id.in_(account_ids)).with_entities(func.sum(Account.start_balance).label('total')).first().total
-
-    transfer_balance = float(trf_positive or 0.0) - float(trf_negative or 0.0)
-    balance = float(start_balance or 0.0) + float(transaction_balance or 0.0) + transfer_balance
     
+    balance = get_single_balance(account_)
+
     bal_recon = float(form.amount.data or 0.0)
     diff = bal_recon - balance
     try: 
@@ -206,7 +191,7 @@ def account_detail(account):
     except ZeroDivisionError:
         diff_p = 0
     
-    return render_template('account_detail.html', title=account, account_type=account_type, form=form, account_trx=account_trx, 
+    return render_template('account_detail.html', title=account, account_type=account_.type, form=form, account_trx=account_trx, 
                            balance=balance, bal_recon=bal_recon, diff=diff, diff_p=diff_p)
 
 @app.route('/update_balance', methods=['GET', 'POST'])
@@ -246,7 +231,7 @@ def balance_view():
     month_range = []
     acc_range = []
     
-    balance_by_type = get_current_balance()
+    balance_by_type = get_balance_by_type()
 
     #BALANCES EVOLUTION MONTHLY BASED ON FORM SELECTION
     if form.validate_on_submit():
@@ -351,11 +336,9 @@ def transactions():
     if form.validate_on_submit():
         accounts = [form.account.data.id]
 
-    transactions = db.session.query(Transaction.date, Transaction.amount, Account.name, Category.name.label('cat'), Transaction.tag, Transaction.description, Transaction.created_at).join(
-        Account, Account.id == Transaction.account).join(
+    transactions = db.session.query(Transaction.date, Transaction.amount, Account.name, Category.name.label('cat'), Transaction.tag, 
+        Transaction.description, Transaction.created_at).join(Account, Account.id == Transaction.account).join(
         Category, Category.id == Transaction.category).filter(Transaction.account.in_(accounts)).filter(
     Transaction.date.between(form.start_date.data, form.end_date.data)).order_by(Transaction.date.desc()).all()
-
-    print(transactions)
 
     return render_template('transactions.html', title='Transactions', form=form, transactions=transactions)
