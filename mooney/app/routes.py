@@ -9,7 +9,9 @@ from config import Config
 import pandas as pd 
 import json
 import collections
-from .func import get_balance_by_type, get_single_balance
+from .func import get_balance_by_type, get_single_balance, get_category_balance
+from datetime import datetime, date, timedelta  
+import calendar
 
 @app.route('/')
 @app.route('/index', methods=['GET', 'POST'])
@@ -142,7 +144,7 @@ def add_transaction():
         #think about transaction signs
         transaction = Transaction(account=form.account.data.id, category=form.category.data.id, amount=form.amount.data, 
                                   currency=form.account.data.currency, date=form.date.data, 
-                                  description=form.description.data, tag=form.tag.data)
+                                  description=form.description.data, tag=form.tag.data, user_id=current_user.id)
         db.session.add(transaction)
         db.session.commit()
         flash('A transaction was just added!')
@@ -342,3 +344,28 @@ def transactions():
     Transaction.date.between(form.start_date.data, form.end_date.data)).order_by(Transaction.date.desc()).all()
 
     return render_template('transactions.html', title='Transactions', form=form, transactions=transactions)
+
+@app.route('/charts', methods=['GET', 'POST'])
+@login_required
+def charts():
+    form = SelectDateForm()
+    balance_by_type = get_balance_by_type()
+
+    today = date.today()
+        
+    if form.validate_on_submit():
+        st = form.start_date.data
+        ed = form.end_date.data
+        start_date = st.replace(day = 1)
+        end_date = ed.replace(day = calendar.monthrange(ed.year, ed.month)[1])
+    else:
+        today = date.today()
+        first = today.replace(day=1)
+        end_date = first - timedelta(days=1)
+        start_date = end_date.replace(day=1)
+
+    labels = ["Income", "Expense", "Net"]
+    values = get_category_balance(start_date, end_date)
+
+    return render_template('charts.html', title='Chart', form=form, end_date=end_date, start_date=start_date, balance_by_type=balance_by_type,
+                           labels=labels, values=values)

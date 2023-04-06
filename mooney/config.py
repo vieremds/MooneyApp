@@ -9,4 +9,5 @@ class Config(object):
     DEBUG = True
     ACCOUNT_TYPES = ['Giro','Liability','Investment']
     CURRENCIES = [('EUR', 'Euro'), ('BRL', 'Brasilian-Real'), ('USD', 'Dollar'), ('GBP','British-Pounds')]
+    CATEGORY_TYPES = ['Income','Expense']
     LOG_TO_STDOUT = os.environ.get('LOG_TO_STDOUT')

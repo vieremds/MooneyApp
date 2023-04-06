@@ -1,6 +1,6 @@
 from app import db
 from flask_login import current_user
-from app.models import Account, Transaction, Transfer
+from app.models import Account, Transaction, Transfer, Category
 from sqlalchemy import func
 from config import Config
 import json
@@ -72,3 +72,20 @@ def get_single_balance(account):
             balance = last_value[0]
     
     return balance
+
+def get_category_balance(start_date, end_date):
+    values = []
+
+    #Income
+    cat_ids = [id[0] for id in db.session.query(Category.id).filter_by(user_id = current_user.id).filter_by(type='Income').all()]
+    income = db.session.query(func.sum(Transaction.amount)).filter(Transaction.category.in_(cat_ids)).filter(Transaction.date.between(start_date, end_date)).first()
+
+    #expense
+    cat_ids = [id[0] for id in db.session.query(Category.id).filter_by(user_id = current_user.id).filter_by(type='Expense').all()]       
+    expense = db.session.query(func.sum(Transaction.amount)).filter(Transaction.category.in_(cat_ids)).filter(Transaction.date.between(start_date, end_date)).first()
+
+    values.append(round(float(income[0] or 0.00), 2))
+    values.append(round(float(expense[0] or 0.00), 2))
+    values.append(round(float(values[0] + values[1]), 2))
+
+    return values
