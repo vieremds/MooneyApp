@@ -89,3 +89,26 @@ def get_category_balance(start_date, end_date):
     values.append(round(float(values[0] + values[1]), 2))
 
     return values
+
+
+def get_category_type_balance(start_date, end_date):
+    income_keys = []
+    income_values = []
+    expense_keys = []
+    expense_values = []
+
+    #Income
+    cat_ids = db.session.query(Category.type, Category.name, Category.id).filter_by(user_id = current_user.id).filter_by(type='Income').all()
+    for cat in cat_ids:
+        amount = db.session.query(func.sum(Transaction.amount)).filter(Transaction.category.in_([cat.id])).filter(Transaction.date.between(start_date, end_date)).first()
+        income_keys.append(cat.name)
+        income_values.append(round(float(amount[0] or 0.00), 2))
+
+    #expense
+    cat_ids = db.session.query(Category.type, Category.name, Category.id).filter_by(user_id = current_user.id).filter_by(type='Expense').all()   
+    for cat in cat_ids:
+        amount = db.session.query(func.sum(Transaction.amount)).filter(Transaction.category.in_([cat.id])).filter(Transaction.date.between(start_date, end_date)).first()
+        expense_keys.append(cat.name)
+        expense_values.append(round(float(amount[0] or 0.00), 2))
+
+    return income_keys, income_values, expense_keys, expense_values

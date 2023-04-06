@@ -48,26 +48,30 @@
   <br>
   <br>
   <div>
-    <canvas id="myChart" style="width:100%;max-width:700px;margin: 0 auto;"></canvas>
+    <canvas id="myBarChart" style="width:100%;max-width:500px;margin: 0 auto;"></canvas>
+  </div>
+  <br>
+  <br>
+  <div class="row" style="display: flex;">
+    <div class="col-md-6"><canvas id="IncomePieChart" style="width:100%;max-width:700px;"></canvas></div>
+    <div class="col-md-6"><canvas id="ExpensePieChart" style="width:100%;max-width:700px;"></canvas></div>
   </div>
   <br>
   <br>
   <input type="hidden" name="scrollPosition" class="scrollPosition" />
 {% endblock %}
 {% block scripts %}
-<script
-src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js">
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
 <script type="text/javascript">
     function load_bar_chart(type, val) {
-        const myChart = new Chart( "myChart", {
+        const BarChart = new Chart( "myBarChart", {
         type: 'bar',
         data: {
             labels: type,
             datasets: [{
                 data: val,
                 backgroundColor: barColors,
-                borderWidth: 1,
+                borderWidth: 2,
             }]
         },
         options: {
@@ -91,6 +95,76 @@ src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js">
     var values = {{ values }}
     var barColors = ["#00aba9", "#b91d47", "#1e7145"]
     load_bar_chart(labels, values);
+
+    function load_pie_chart(income_keys, income_values, expense_keys, expense_values) {
+        const IncomePieChart = new Chart( "IncomePieChart", {
+        type: 'doughnut',
+        data: {
+            labels: income_keys,
+            datasets: [{
+                data: income_values,
+                backgroundColor: colorArray.reverse(),
+                borderWidth: 2,
+            }]
+        },
+        options: {
+            title: {
+                display: true,
+                text: 'Monthly view of Income',
+            },
+            legend: {
+                display: false,
+            },
+            //backgroundColor: '#dcdcdc',
+            animation: {
+                duration: 1500, // set the animation duration in milliseconds
+                 easing: 'easeInOutQuart' // set the easing function for the animation
+            }
+        }
+        }
+        );
+        const ExpensePieChart = new Chart( "ExpensePieChart", {
+        type: 'doughnut',
+        data: {
+            labels: expense_keys,
+            datasets: [{
+                data: expense_values,
+                backgroundColor: colorArray,
+                borderWidth: 2,
+            }]
+        },
+        options: {
+            title: {
+                display: true,
+                text: 'Monthly view of Expense',
+            },
+            legend: {
+                display: false,
+            },
+            //backgroundColor: '#dcdcdc',
+            animation: {
+                duration: 1500, // set the animation duration in milliseconds
+                 easing: 'easeInOutQuart' // set the easing function for the animation
+            }
+        }
+        }
+        );
+    }
+    var income_keys = {{ income_keys | tojson }};
+    var income_values = {{ income_values }};
+    var expense_keys = {{ expense_keys | tojson }};
+    var expense_values = {{ expense_values }};
+    var colorArray = ['#FF6633', '#FFB399', '#FF33FF', '#FFFF99', '#00B3E6', 
+		  '#E6B333', '#3366E6', '#999966', '#99FF99', '#B34D4D',
+		  '#80B300', '#809900', '#E6B3B3', '#6680B3', '#66991A', 
+		  '#FF99E6', '#CCFF1A', '#FF1A66', '#E6331A', '#33FFCC',
+		  '#66994D', '#B366CC', '#4D8000', '#B33300', '#CC80CC', 
+		  '#66664D', '#991AFF', '#E666FF', '#4DB3FF', '#1AB399',
+		  '#E666B3', '#33991A', '#CC9999', '#B3B31A', '#00E680', 
+		  '#4D8066', '#809980', '#E6FF80', '#1AFF33', '#999933',
+		  '#FF3380', '#CCCC00', '#66E64D', '#4D80CC', '#9900B3', 
+		  '#E64D66', '#4DB380', '#FF4D4D', '#99E6E6', '#6666FF'];
+    load_pie_chart(income_keys, income_values, expense_keys, expense_values);
 </script>
 <script>
     document.addEventListener("DOMContentLoaded", function(event) { 

@@ -9,7 +9,7 @@ from config import Config
 import pandas as pd 
 import json
 import collections
-from .func import get_balance_by_type, get_single_balance, get_category_balance
+from .func import get_balance_by_type, get_single_balance, get_category_balance, get_category_type_balance
 from datetime import datetime, date, timedelta  
 import calendar
 
@@ -367,5 +367,7 @@ def charts():
     labels = ["Income", "Expense", "Net"]
     values = get_category_balance(start_date, end_date)
 
+    income_keys, income_values, expense_keys, expense_values = get_category_type_balance(start_date, end_date)
+
     return render_template('charts.html', title='Chart', form=form, end_date=end_date, start_date=start_date, balance_by_type=balance_by_type,
-                           labels=labels, values=values)
+                           labels=labels, values=values, income_keys=income_keys, income_values=income_values, expense_keys=expense_keys, expense_values=expense_values)
