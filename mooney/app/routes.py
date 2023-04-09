@@ -129,12 +129,19 @@ def add_category():
         return redirect(url_for('categories'))
     return render_template('add_category.html', title='Add Category', form=form)
 
-@app.route('/categories', methods=['GET'])
+@app.route('/categories', methods=['GET', 'POST'])
 @login_required
 def categories():
+    form = {"name":"text", "type":"text", "description":"text", "budget":"float"}
     categories = Category.query.filter_by(user_id=current_user.id)
-    return render_template('categories.html', title='Categories', categories=categories)
-
+    if request.method == 'POST':
+        cat = Category.query.filter_by(id=request.form['id']).first()
+        cat.name = request.form['name']
+        cat.type = request.form['type']
+        cat.description = request.form['description']
+        cat.budget = request.form['budget']
+        db.session.commit()
+    return render_template('categories.html', title='Categories', categories=categories, form=form)
 @app.route('/add_transactions', methods=['GET', 'POST'])
 @login_required
 def add_transaction():
