@@ -37,8 +37,6 @@ def index():
         Transaction.date.between(form.start_date.data, form.end_date.data)).group_by(
         Transaction.category, func.strftime("%Y-%m", Transaction.date)).order_by(Transaction.date.asc()).all()
 
-        print(account_trx)
-
         for trx in account_trx:
             if trx.month not in range_desc:
                 range_desc.append(trx.month)
@@ -107,13 +105,25 @@ def add_account():
         return redirect(url_for('accounts'))
     return render_template('add_account.html', title='Add Account', form=form)
 
-@app.route('/accounts', methods=['GET'])
+@app.route('/accounts', methods=['GET', 'POST'])
 @login_required
 def accounts():
+    form = {"name":"text", "type":"text", "currency":"text", "description":"text", "start_balance":"float", "balance_date":"date", "balance_archive":"text"}
     accounts = Account.query.filter_by(user_id=current_user.id).all()
     for account in accounts:       
         account.balance = get_single_balance(account)
-    return render_template('accounts.html', title='Accounts', accounts=accounts)
+    if request.method == 'POST':
+        acc = Account.query.filter_by(id=request.form['id']).first()
+        acc.name = request.form['name']
+        acc.type = request.form['type']
+        acc.currency = request.form['currency']
+        acc.description = request.form['description']
+        acc.start_balance = request.form['start_balance']
+        acc.balance_date = datetime. strptime(request.form['balance_date'], '%Y-%m-%d')
+        acc.balance_archive = request.form['balance_archive']
+        acc.last_modified = datetime.utcnow()
+        db.session.commit()
+    return render_template('accounts.html', title='Accounts', accounts=accounts, form=form)
 
 @app.route('/add_category', methods=['GET', 'POST'])
 @login_required
@@ -140,8 +150,10 @@ def categories():
         cat.type = request.form['type']
         cat.description = request.form['description']
         cat.budget = request.form['budget']
+        cat.last_modified = datetime.now()
         db.session.commit()
     return render_template('categories.html', title='Categories', categories=categories, form=form)
+
 @app.route('/add_transactions', methods=['GET', 'POST'])
 @login_required
 def add_transaction():
@@ -328,29 +340,39 @@ def balance_view():
 
     #Information needed, Accounts.Names, Balance by Month, Month Range
 
-#think about investment accounts, add balance to them, display that shit with filters
-
-
-#NO TRANSACTIONS FOR INVESTMENT ACCOUNTS
-#THERE ARE TRANSFERS, BUT THESE ARE NOT INCLUDED IN THE BALANCE AS 
-#BALANCE ARCHIVE IS THE SINGLE SOURCE OF TRUTH FOR INVESTMENT ACCOUNTS BALANCE
-
 @app.route('/transactions', methods=['GET', 'POST'])
 @login_required
 def transactions():
     form = DateAccountForm()
-    
+    form_id = {"acc":"text", "category":"text", "amount":"float", "currency":"text", "date":"date", "created_at":"date", "tag":"text", "description":"text"}
+
     accounts = [id[0] for id in db.session.query(Account.id).filter_by(user_id=current_user.id).all()]
     
     if form.validate_on_submit():
         accounts = [form.account.data.id]
 
-    transactions = db.session.query(Transaction.date, Transaction.amount, Account.name, Category.name.label('cat'), Transaction.tag, 
+    transactions = db.session.query(Transaction.id, Transaction.date, Transaction.amount, Transaction.currency  , Account.name.label('acc'), Category.name.label('category'), Transaction.tag, 
         Transaction.description, Transaction.created_at).join(Account, Account.id == Transaction.account).join(
         Category, Category.id == Transaction.category).filter(Transaction.account.in_(accounts)).filter(
     Transaction.date.between(form.start_date.data, form.end_date.data)).order_by(Transaction.date.desc()).all()
 
-    return render_template('transactions.html', title='Transactions', form=form, transactions=transactions)
+    return render_template('transactions.html', title='Transactions', form=form, transactions=transactions, form_id=form_id)
+
+@app.route('/transactions/edit', methods=['POST'])
+@login_required
+def transactions_edit():
+    trx = Transaction.query.filter_by(id=request.form['id']).first()
+    trx.account = db.session.query(Account.id).filter_by(user_id=current_user.id).filter_by(name=request.form['acc']).first()[0]
+    trx.category = db.session.query(Category.id).filter_by(user_id=current_user.id).filter_by(name=request.form['category']).first()[0]
+    trx.amount = request.form['amount']
+    trx.currency = request.form['currency']
+    trx.date = datetime.strptime(request.form['date'], '%Y-%m-%d')
+    trx.created_at = datetime.utcnow()
+    trx.tag = request.form['tag']
+    trx.description = request.form['description']
+    db.session.commit()
+
+    return redirect(url_for('transactions'), code=307)
 
 @app.route('/charts', methods=['GET', 'POST'])
 @login_required
@@ -378,3 +400,15 @@ def charts():
 
     return render_template('charts.html', title='Chart', form=form, end_date=end_date, start_date=start_date, balance_by_type=balance_by_type,
                            labels=labels, values=values, income_keys=income_keys, income_values=income_values, expense_keys=expense_keys, expense_values=expense_values)
+
+#TRANSACTION_EDIT SHOULD KEEP THE FORMER VIEW
+#ADD TRANSACTION FORM SHOULD HAVE AN OPTION TO SAVE + ADD ANOTHER TRANSACTION
+#HOME, BALANCE, TRANSACTION SHOULD HAVE A PRE-POPULATED FILTER, SO IT DOESN"T SHOW EMPTY
+#TRANSACTIONS SHOULD HAVE A FILTER FOR CATEGORIES
+    #HOME CATEGORIES SHOULD POINT TO TRANSACTION URL
+#IMPLEMENT ERRORS AS PER MEGATUTORIAL
+#IMPLEMENT FORGOT PASSWORD AND EMAIL VALIDATION AS PER MEGATUTORIAL
+#IMPLEMENT LOGGING
+#IMPLEMENT BLUEPRINT AS PER MEGATUTORIAL
+#IMPLEMENT MYSQL WAY OF WORKING
+#DEPLOY
