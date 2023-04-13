@@ -2,6 +2,14 @@
 {% import 'bootstrap/wtf.html' as wtf %}
 
 {% block app_content %}
+<style>
+  .modal-header:before {
+    content: none;
+  }
+</style>  
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 <div>
     <form action="" method="post">
       {{ form.hidden_tag() }}
@@ -27,6 +35,7 @@
     <table id="data" class="table table-striped">
         <thead>
             <tr>
+                <th>Id</th>
                 <th>Date</th>
                 <th>Amount</th>
                 <th>Account</th>
@@ -38,15 +47,42 @@
         </thead>
         <tbody>
         {% for trx in transactions %}
-            <tr>
+          <tr>
+            <td><a data-toggle="modal" data-target="#myModal{{trx.id}}" href="#myModal{{trx.id}}">{{ trx.id }}</a></td>
             <td>{{ trx.date }}</td>
             <td>{{ trx.amount }}</td>
-            <td>{{ trx.name }}</td>
-            <td>{{ trx.cat }}</td>
+            <td>{{ trx.acc }}</td>
+            <td>{{ trx.category }}</td>
             <td>{{ trx.tag }}</td>
             <td>{{ trx.description }}</td>
             <td>{{ trx.created_at }}</td>
-            </tr>
+          </tr>
+          <!-- Modal -->
+          <div id="myModal{{trx.id}}" class="modal fade" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" id="{{trx.id}}" role="document">
+              <!-- Modal content-->
+              <div class="modal-content">
+                <div class="modal-header" style="justify-content:space-between;">
+                  <h4 class="modal-text">Edit Transaction</h4>
+                </div>
+                <div class="modal-body">
+                  <form action="/transactions/edit" method="post">
+                    <input type="integer" id="id" name="id" value="{{ trx.id }}" hidden="True"/>
+                    {% for key in form_id %}
+                    <div class="form-group">
+                        <label for="{{ key }}" class="col-form-label">{{ key }}</label>
+                        <input type="{{ form[key] }}" class="form-control" id="{{ key }}" name="{{ key }}" value="{{ trx[key] }}"/>
+                    </div> 
+                    {% endfor %}
+                    <div class="modal-footer">
+                      <button type="submit" class="btn btn-primary">Save changes</button>
+                      <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
         {% endfor %}
         </tbody>
     </table>

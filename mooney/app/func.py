@@ -47,9 +47,7 @@ def get_balance_by_type():
     return balance_by_type
 
 def get_single_balance(account):
-
     if account.type != 'Investment':
-        print(account.id)
         transaction_balance = Transaction.query.filter(Transaction.account.in_([account.id])).with_entities(func.sum(Transaction.amount).label('total')).first().total
         trf_negative = Transfer.query.filter(Transfer.source_account.in_([account.id])).with_entities(func.sum(Transfer.amount).label('total')).first().total
         trf_positive = Transfer.query.filter(Transfer.target_account.in_([account.id])).with_entities(func.sum(Transfer.amount).label('total')).first().total
