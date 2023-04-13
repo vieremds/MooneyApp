@@ -5,6 +5,8 @@ from sqlalchemy import func
 from config import Config
 import json
 import collections
+from datetime import datetime, date, timedelta
+import calendar 
 
 
 def get_balance_by_type():
@@ -110,3 +112,15 @@ def get_category_type_balance(start_date, end_date):
         expense_values.append(round(float(amount[0] or 0.00), 2))
 
     return income_keys, income_values, expense_keys, expense_values
+
+def get_month_dates(st_date='', ed_date=''):
+    if not st_date and not ed_date:
+        today = date.today()
+        first = today.replace(day=1)
+        end_date = first - timedelta(days=1)
+        start_date = end_date.replace(day=1)
+    else:
+        start_date = st_date.replace(day = 1)
+        end_date = ed_date.replace(day = calendar.monthrange(ed_date.year, ed_date.month)[1])
+    
+    return start_date, end_date

@@ -2,7 +2,7 @@
 {% import 'bootstrap/wtf.html' as wtf %}
 
 {% block app_content %}
-    <!--h1>Hello, {{ current_user.username }}! This is your Overview</h1!-->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"> 
     <div class="card-group">
         {% set y = namespace(value=0) %}
         {% for k,v in balance_by_type.items() %}
@@ -33,7 +33,7 @@
         {{ form.hidden_tag() }}
         <div class="col-md-2">
           {{ form.start_date.label }}
-          {{ form.start_date(size=32) }}
+          {{ form.start_date(size=32, onchange="submit()") }}
         </div>
         <div class="col-md-2">
           {{ form.end_date.label }}
@@ -53,6 +53,7 @@
       <table id="data" class="table table-striped">
           <thead>
             <tr>
+              <th rowspan=2>#</th>
               <th rowspan=2>Category</th>
               <th rowspan=2>Budget</th>
               {% if range_count %}
@@ -74,6 +75,7 @@
               {% set i = namespace(value=0) %}
               {% for cat in cat_range %}
                 <tr>
+                  <td><a href="{{ url_for('transactions', categories=cat, start_date=form.start_date.data, end_date=form.end_date.data) }}"><i class="fa fa-plus"></i></a></td>
                   <td>{{ cat }}</td>    
                   <td>{{ bdgt_range[i.value] }}</td> 
                   {% set i.value = i.value + 1 %}  

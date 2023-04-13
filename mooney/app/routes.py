@@ -1,15 +1,15 @@
 from flask import render_template, flash, redirect, url_for, request, session
 from app import app, db
-from app.forms import LoginForm, RegistrationForm, AddAccountForm, CategoryForm, TransactionForm, TransferForm, SelectDateForm, DateTypeForm, UpdateBalanceForm, DateAccountForm
+from app.forms import LoginForm, RegistrationForm, AddAccountForm, CategoryForm, TransactionForm, TransferForm, SelectDateForm, DateTypeForm, UpdateBalanceForm, DateAccountCategoryForm
 from flask_login import current_user, login_user, logout_user, login_required
-from app.models import User, Account, Category, Transaction, Transfer
+from app.models import User, Account, Category, Transaction, Transfer, account_choices, category_choices
 from werkzeug.urls import url_parse
-from sqlalchemy import func
+from sqlalchemy import func, exc
 from config import Config
 import pandas as pd 
 import json
 import collections
-from .func import get_balance_by_type, get_single_balance, get_category_balance, get_category_type_balance
+from .func import get_balance_by_type, get_single_balance, get_category_balance, get_category_type_balance, get_month_dates
 from datetime import datetime, date, timedelta  
 import calendar
 
@@ -25,31 +25,32 @@ def index():
     cat_range = []
     bdgt_range = []
     trx_by_cat = {}
-    
-    if form.validate_on_submit():
 
+    account = [id[0] for id in db.session.query(Account.id).filter_by(user_id=current_user.id).all()]
+    
+    if form.type.data: 
         account = [id[0] for id in db.session.query(Account.id).filter(Account.type.in_(form.type.data)).filter_by(user_id=current_user.id).all()]
 
-        #CATEGORY/TRANSACTION STUFF
-        account_trx = db.session.query(func.sum(Transaction.amount).label('sum'), 
-        func.strftime("%Y-%m", Transaction.date).label('month'), Category.name, Category.budget).join(
-        Category, Category.id == Transaction.category).filter(Transaction.account.in_(account)).filter(
-        Transaction.date.between(form.start_date.data, form.end_date.data)).group_by(
-        Transaction.category, func.strftime("%Y-%m", Transaction.date)).order_by(Transaction.date.asc()).all()
+    #CATEGORY/TRANSACTION STUFF
+    account_trx = db.session.query(func.sum(Transaction.amount).label('sum'), 
+    func.strftime("%Y-%m", Transaction.date).label('month'), Category.name, Category.budget).join(
+    Category, Category.id == Transaction.category).filter(Transaction.account.in_(account)).filter(
+    Transaction.date.between(form.start_date.data, form.end_date.data)).group_by(
+    Transaction.category, func.strftime("%Y-%m", Transaction.date)).order_by(Transaction.date.asc()).all()
 
-        for trx in account_trx:
-            if trx.month not in range_desc:
-                range_desc.append(trx.month)
-            if trx.name not in cat_range:
-                cat_range.append(trx.name)
-            if trx.budget not in bdgt_range:
-                bdgt_range.append(trx.budget)
+    for trx in account_trx:
+        if trx.month not in range_desc:
+            range_desc.append(trx.month)
+        if trx.name not in cat_range:
+            cat_range.append(trx.name)
+        if trx.budget not in bdgt_range:
+            bdgt_range.append(trx.budget)
 
-        for trx in account_trx:
-            if trx.name not in trx_by_cat:
-                trx_by_cat[trx.name] = [None] * len(range_desc)
-            month_idx = range_desc.index(trx.month)
-            trx_by_cat[trx.name][month_idx] = trx.sum
+    for trx in account_trx:
+        if trx.name not in trx_by_cat:
+            trx_by_cat[trx.name] = [None] * len(range_desc)
+        month_idx = range_desc.index(trx.month)
+        trx_by_cat[trx.name][month_idx] = round(trx.sum, 2)
 
     return render_template('index.html', title='Mooney', form=form, 
         balance_by_type=balance_by_type, range_desc=range_desc,
@@ -110,19 +111,33 @@ def add_account():
 def accounts():
     form = {"name":"text", "type":"text", "currency":"text", "description":"text", "start_balance":"float", "balance_date":"date", "balance_archive":"text"}
     accounts = Account.query.filter_by(user_id=current_user.id).all()
+    
     for account in accounts:       
         account.balance = get_single_balance(account)
     if request.method == 'POST':
         acc = Account.query.filter_by(id=request.form['id']).first()
-        acc.name = request.form['name']
-        acc.type = request.form['type']
-        acc.currency = request.form['currency']
-        acc.description = request.form['description']
-        acc.start_balance = request.form['start_balance']
-        acc.balance_date = datetime. strptime(request.form['balance_date'], '%Y-%m-%d')
-        acc.balance_archive = request.form['balance_archive']
-        acc.last_modified = datetime.utcnow()
-        db.session.commit()
+        
+        #Check which action was requested
+        if request.form['action'] == 'delete':
+            db.session.delete(acc)
+            db.session.commit()
+            #refresh accounts
+            accounts = Account.query.filter_by(user_id=current_user.id).all()
+        elif request.form['action'] == 'save':
+            try:
+                acc.name = request.form['name']
+                acc.type = request.form['type']
+                acc.currency = request.form['currency']
+                acc.description = request.form['description']
+                acc.start_balance = request.form['start_balance']
+                acc.balance_date = datetime. strptime(request.form['balance_date'], '%Y-%m-%d')
+                acc.balance_archive = request.form['balance_archive']
+                acc.last_modified = datetime.utcnow()
+                db.session.commit()
+            except exc.SQLAlchemyError:
+                flash('At least one of the edit fields do not match its required datatype. Try again')
+                db.session.rollback()
+
     return render_template('accounts.html', title='Accounts', accounts=accounts, form=form)
 
 @app.route('/add_category', methods=['GET', 'POST'])
@@ -146,15 +161,29 @@ def categories():
     categories = Category.query.filter_by(user_id=current_user.id)
     if request.method == 'POST':
         cat = Category.query.filter_by(id=request.form['id']).first()
-        cat.name = request.form['name']
-        cat.type = request.form['type']
-        cat.description = request.form['description']
-        cat.budget = request.form['budget']
-        cat.last_modified = datetime.now()
-        db.session.commit()
+        
+        #Check which action was requested
+        if request.form['action'] == 'delete':
+            db.session.delete(cat)
+            db.session.commit()
+        elif request.form['action'] == 'save':
+            try:
+                cat.name = request.form['name']
+                if request.form['type'] in Config.CATEGORY_TYPES:
+                    cat.type = request.form['type']
+                else:
+                    flash('Invalid TYPE value has been passed. Changes were disregarded. Try again')
+                    flash('valid types: {}'.format(Config.CATEGORY_TYPES))
+                cat.description = request.form['description']
+                cat.budget = request.form['budget']
+                cat.last_modified = datetime.now()
+                db.session.commit()
+            except exc.SQLAlchemyError:
+                flash('At least one of the edit fields do not match its required datatype. Try again')
+                db.session.rollback()
     return render_template('categories.html', title='Categories', categories=categories, form=form)
 
-@app.route('/add_transactions', methods=['GET', 'POST'])
+@app.route('/add_transaction', methods=['GET', 'POST'])
 @login_required
 def add_transaction():
     form = TransactionForm()
@@ -163,13 +192,15 @@ def add_transaction():
         #think about transaction signs
         transaction = Transaction(account=form.account.data.id, category=form.category.data.id, amount=form.amount.data, 
                                   currency=form.account.data.currency, date=form.date.data, 
-                                  description=form.description.data, tag=form.tag.data, user_id=current_user.id)
+                                  description=form.description.data, tag=form.tag.data)
         db.session.add(transaction)
         db.session.commit()
         flash('A transaction was just added!')
         next_page = request.args.get('next')
         if not next_page or url_parse(next_page).netloc != '':
-            next_page = url_for('accounts')
+            next_page = url_for('transactions')
+        if form.submit_plus.data:
+            next_page = url_for('add_transaction')
         return redirect(next_page)
     #showing not limited to the user
     return render_template('add_transaction.html', title='Add Transaction', form=form)
@@ -254,123 +285,175 @@ def balance_view():
     
     balance_by_type = get_balance_by_type()
 
-    #BALANCES EVOLUTION MONTHLY BASED ON FORM SELECTION
-    if form.validate_on_submit():
+    accounts = db.session.query(Account.id, Account.name, Account.type,Account.start_balance, Account.balance_archive, 
+                                 Account.created_at).filter_by(user_id=current_user.id).all()
+     
+    if form.type.data:
         accounts = db.session.query(Account.id, Account.name, Account.type,Account.start_balance, Account.balance_archive, 
                                  Account.created_at).filter(Account.type.in_(form.type.data)).filter_by(user_id=current_user.id).all()
-        month_range = pd.date_range(form.start_date.data,form.end_date.data, 
-              freq='MS').strftime("%Y-%m").tolist()
         
-        acc_trimmed = {}
+    month_range = pd.date_range(form.start_date.data,form.end_date.data, 
+            freq='MS').strftime("%Y-%m").tolist()
+    
+    acc_trimmed = {}
 
-        for acc in accounts:
-            acc_trimmed[acc.name] = {}
+    for acc in accounts:
+        acc_trimmed[acc.name] = {}
 
-            if acc.name not in acc_range:
-                acc_range.append(acc.name)
+        if acc.name not in acc_range:
+            acc_range.append(acc.name)
 
-            if acc.type == 'Investment':
-                for idx, m in enumerate(month_range): 
-                    acc_trimmed[acc.name][m] = acc.start_balance
-                    
-                    try:
-                        acc_= json.loads(acc.balance_archive)
-                        acc_= collections.OrderedDict(sorted(acc_.items()))
-                    except:
-                        acc_= False
-
-                    if acc_:
-                        #{2023-03-23: [1000, "balbalba"], 2023-04-23: [1000, "balbalba"]}
-                        if m in acc_:
-                            acc_trimmed[acc.name][m] = acc_[m][0]
-                        else:
-                            if idx-1 >= 0:
-                                acc_trimmed[acc.name][m] = acc_trimmed[acc.name][month_range[idx-1]]
-
-            else:
-                transaction_balance = db.session.query(func.sum(Transaction.amount), 
-                    func.strftime("%Y-%m", Transaction.date).label('month')).filter(Transaction.account.in_([acc.id])).group_by(func.strftime("%Y-%m",
-                    Transaction.date).label('month')).all()
-
-                trf_negative = db.session.query(func.sum(Transfer.amount),
-                    func.strftime("%Y-%m", Transfer.date).label('month')).filter(Transfer.source_account.in_([acc.id])).group_by(func.strftime("%Y-%m",
-                    Transfer.date).label('month')).all()
+        if acc.type == 'Investment':
+            for idx, m in enumerate(month_range): 
+                acc_trimmed[acc.name][m] = acc.start_balance
                 
-                trf_positive = db.session.query(func.sum(Transfer.amount),
-                    func.strftime("%Y-%m", Transfer.date).label('month')).filter(Transfer.target_account.in_([acc.id])).group_by(func.strftime("%Y-%m",
-                    Transfer.date).label('month')).all()
-                
-                start_balance = db.session.query(func.sum(Account.start_balance),
-                    func.strftime("%Y-%m", Account.created_at).label('month')).filter(Account.id.in_([acc.id])).group_by(func.strftime("%Y-%m",
-                    Account.created_at).label('month')).all()
+                try:
+                    acc_= json.loads(acc.balance_archive)
+                    acc_= collections.OrderedDict(sorted(acc_.items()))
+                except:
+                    acc_= False
 
-                for idx, m in enumerate(month_range): 
-                    #(2023-04, 1000)
-                    tr_ = 0.0
-                    trf_n = 0.0
-                    trf_p = 0.0
-                    sb_ = 0.0
+                if acc_:
+                    #{2023-03-23: [1000, "balbalba"], 2023-04-23: [1000, "balbalba"]}
+                    if m in acc_:
+                        acc_trimmed[acc.name][m] = acc_[m][0]
+                    else:
+                        if idx-1 >= 0:
+                            acc_trimmed[acc.name][m] = acc_trimmed[acc.name][month_range[idx-1]]
 
-                    for tr in transaction_balance:
-                        if m in tr:
-                            tr_ = tr[0]
+        else:
+            transaction_balance = db.session.query(func.sum(Transaction.amount), 
+                func.strftime("%Y-%m", Transaction.date).label('month')).filter(Transaction.account.in_([acc.id])).group_by(func.strftime("%Y-%m",
+                Transaction.date).label('month')).all()
 
-                    for tn in trf_negative:
-                        if m in tn:
-                            trf_n = tn[0]
+            trf_negative = db.session.query(func.sum(Transfer.amount),
+                func.strftime("%Y-%m", Transfer.date).label('month')).filter(Transfer.source_account.in_([acc.id])).group_by(func.strftime("%Y-%m",
+                Transfer.date).label('month')).all()
+            
+            trf_positive = db.session.query(func.sum(Transfer.amount),
+                func.strftime("%Y-%m", Transfer.date).label('month')).filter(Transfer.target_account.in_([acc.id])).group_by(func.strftime("%Y-%m",
+                Transfer.date).label('month')).all()
+            
+            start_balance = db.session.query(func.sum(Account.start_balance),
+                func.strftime("%Y-%m", Account.created_at).label('month')).filter(Account.id.in_([acc.id])).group_by(func.strftime("%Y-%m",
+                Account.created_at).label('month')).all()
 
-                    for tp in trf_positive:
-                        if m in tp:
-                            trf_p = tp[0]
+            for idx, m in enumerate(month_range): 
+                #(2023-04, 1000)
+                tr_ = 0.0
+                trf_n = 0.0
+                trf_p = 0.0
+                sb_ = 0.0
 
-                    for sb in start_balance:
-                        if m in sb:
-                            sb_ = sb[0]
+                for tr in transaction_balance:
+                    if m in tr:
+                        tr_ = round(tr[0], 2)
 
-                    transfer_balance = float(trf_p) - float(trf_n)
-                    balance = float(sb_) + float(tr_) + transfer_balance
-                    if idx-1 >= 0:
-                        acc_trimmed[acc.name][m] = balance + acc_trimmed[acc.name][month_range[idx-1]]
-                    else: 
-                        acc_trimmed[acc.name][m] = balance
-                    #Structure {N26: [03-2022:1000, 04-2023:2000, 05-2023:2500]}
+                for tn in trf_negative:
+                    if m in tn:
+                        trf_n = round(tn[0], 2)
 
-        return render_template('balance_view.html', title='Balance View', form=form, balance_by_type=balance_by_type, month_range=month_range, acc_range=acc_range, acc_trimmed=acc_trimmed)     
-    return render_template('balance_view.html', title='Balance View', form=form,balance_by_type=balance_by_type, month_range=month_range, acc_range=acc_range)
+                for tp in trf_positive:
+                    if m in tp:
+                        trf_p = round(tp[0], 2)
 
-    #Information needed, Accounts.Names, Balance by Month, Month Range
+                for sb in start_balance:
+                    if m in sb:
+                        sb_ = round(sb[0], 2)
+
+                transfer_balance = float(trf_p) - float(trf_n)
+                balance = float(sb_) + float(tr_) + transfer_balance
+                if idx-1 >= 0:
+                    acc_trimmed[acc.name][m] = balance + acc_trimmed[acc.name][month_range[idx-1]]
+                else: 
+                    acc_trimmed[acc.name][m] = balance
+                #Structure {N26: [03-2022:1000, 04-2023:2000, 05-2023:2500]}
+
+    return render_template('balance_view.html', title='Balance View', form=form, balance_by_type=balance_by_type, month_range=month_range, acc_range=acc_range, acc_trimmed=acc_trimmed)
 
 @app.route('/transactions', methods=['GET', 'POST'])
 @login_required
 def transactions():
-    form = DateAccountForm()
-    form_id = {"acc":"text", "category":"text", "amount":"float", "currency":"text", "date":"date", "created_at":"date", "tag":"text", "description":"text"}
+    form = DateAccountCategoryForm()
+    
+    #Get stuff from redirect parameters, not necessarily there will be 
+    categories = request.args.get('categories')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
 
+    #To serve the Edit Transaction form modal
+    form_id = {"account":"text", "category":"text", "amount":"float", "currency":"text", "date":"date", "created_at":"date", "tag":"text", "description":"text"}
+
+    #get all accounts for current user
     accounts = [id[0] for id in db.session.query(Account.id).filter_by(user_id=current_user.id).all()]
     
-    if form.validate_on_submit():
+    #To serve the redirect with parameters we check wether the paramaters was passed
+    #if not passed, we use default values
+    if not categories:
+        categories = [id[0] for id in db.session.query(Category.id).filter_by(user_id=current_user.id).all()]
+    else:
+        #as categories have been passed, it comes as a name, so we need to get the respective id
+        categories = [id[0] for id in db.session.query(Category.id).filter_by(user_id=current_user.id).filter_by(name=categories).all()]
+    if not start_date:
+        start_date = form.start_date.data
+        end_date = form.end_date.data
+    
+    #If form is submitted in the page we need to get the form data over anything else
+    try: 
         accounts = [form.account.data.id]
+    except AttributeError:
+        pass
+    try:
+        categories = [form.category.data.id]
+    except AttributeError:
+        pass
 
-    transactions = db.session.query(Transaction.id, Transaction.date, Transaction.amount, Transaction.currency  , Account.name.label('acc'), Category.name.label('category'), Transaction.tag, 
-        Transaction.description, Transaction.created_at).join(Account, Account.id == Transaction.account).join(
+    #QUERY
+    transactions = db.session.query(Transaction.id, Transaction.date, Transaction.amount, Transaction.currency, Account.name.label('account'), 
+        Category.name.label('category'), Transaction.tag, Transaction.description, Transaction.created_at).join(Account, Account.id == Transaction.account).join(
         Category, Category.id == Transaction.category).filter(Transaction.account.in_(accounts)).filter(
-    Transaction.date.between(form.start_date.data, form.end_date.data)).order_by(Transaction.date.desc()).all()
+    Transaction.date.between(start_date, end_date)).filter(Transaction.category.in_(categories)).order_by(Transaction.date.desc()).all()
 
     return render_template('transactions.html', title='Transactions', form=form, transactions=transactions, form_id=form_id)
 
 @app.route('/transactions/edit', methods=['POST'])
 @login_required
 def transactions_edit():
+    #Retrieve the transaction itself
     trx = Transaction.query.filter_by(id=request.form['id']).first()
-    trx.account = db.session.query(Account.id).filter_by(user_id=current_user.id).filter_by(name=request.form['acc']).first()[0]
-    trx.category = db.session.query(Category.id).filter_by(user_id=current_user.id).filter_by(name=request.form['category']).first()[0]
-    trx.amount = request.form['amount']
-    trx.currency = request.form['currency']
-    trx.date = datetime.strptime(request.form['date'], '%Y-%m-%d')
-    trx.created_at = datetime.utcnow()
-    trx.tag = request.form['tag']
-    trx.description = request.form['description']
-    db.session.commit()
+    
+    #Check which action was requested
+    if request.form['action'] == 'delete':
+        db.session.delete(trx)
+        db.session.commit()
+    elif request.form['action'] == 'save':
+        try:
+            try: 
+                trx.account = db.session.query(Account.id).filter_by(user_id=current_user.id).filter_by(name=request.form['account']).first()[0]
+            except TypeError:
+                flash('Invalid ACCOUNT value has been passed, changes were disregarded. Try again')
+                flash('valid ACCOUNTS: {}'.format([acc.name for acc in account_choices()]))
+                return redirect(url_for('transactions'), code=307)
+            try:
+                trx.category = db.session.query(Category.id).filter_by(user_id=current_user.id).filter_by(name=request.form['category']).first()[0]
+            except TypeError:
+                flash('Invalid CATEGORY value has been passed, changes were disregarded. Try again')
+                flash('valid CATEGORIES: {}'.format([cat.name for cat in category_choices()]))
+                return redirect(url_for('transactions'), code=307)
+            trx.amount = request.form['amount']
+            trx.currency = request.form['currency']
+            trx.date = datetime.strptime(request.form['date'], '%Y-%m-%d')
+            trx.created_at = datetime.utcnow()
+            trx.tag = request.form['tag']
+            trx.description = request.form['description']
+            db.session.commit()
+        except exc.SQLAlchemyError:
+                flash('At least one of the edit fields do not match its required datatype. Try again')
+                db.session.rollback()
+                pass
+    #Else is not expected, putting in here case a different meaning of POST is received
+    else:
+        flash('POST action not known. No action has been taken')
 
     return redirect(url_for('transactions'), code=307)
 
@@ -383,15 +466,9 @@ def charts():
     today = date.today()
         
     if form.validate_on_submit():
-        st = form.start_date.data
-        ed = form.end_date.data
-        start_date = st.replace(day = 1)
-        end_date = ed.replace(day = calendar.monthrange(ed.year, ed.month)[1])
+        start_date, end_date = get_month_dates(st_date=form.start_date.data, ed_date=form.end_date.data)
     else:
-        today = date.today()
-        first = today.replace(day=1)
-        end_date = first - timedelta(days=1)
-        start_date = end_date.replace(day=1)
+        start_date, end_date = get_month_dates()
 
     labels = ["Income", "Expense", "Net"]
     values = get_category_balance(start_date, end_date)
@@ -401,15 +478,13 @@ def charts():
     return render_template('charts.html', title='Chart', form=form, end_date=end_date, start_date=start_date, balance_by_type=balance_by_type,
                            labels=labels, values=values, income_keys=income_keys, income_values=income_values, expense_keys=expense_keys, expense_values=expense_values)
 
-#TRANSACTION_EDIT SHOULD KEEP THE FORMER VIEW
-#ADD TRANSACTION FORM SHOULD HAVE AN OPTION TO SAVE + ADD ANOTHER TRANSACTION
-#HOME, BALANCE, TRANSACTION SHOULD HAVE A PRE-POPULATED FILTER, SO IT DOESN"T SHOW EMPTY
-#TRANSACTIONS SHOULD HAVE A FILTER FOR CATEGORIES
-    #HOME CATEGORIES SHOULD POINT TO TRANSACTION URL
+#ADD DELETE OPTION TO TRANSACTIONS/ACCOUNT/CATEGORY EDIT FORM
+#BALANCE NEEDS RE-WORK, IT IS FUCKED UP FOR GIRO AND LIABILITY, INVESTMENT IS FINE
 #CHARTS SHOULD INCLUDE SOMETHING ABOUT INVESTIMENTS (3Month evolution, pie chart)
 #CHARTS SHOULD INCLUDE A NAVIGATION VIA CARROUSEL
 #CHARTS SHOULD INCLUDE A VIEW OTHER THAN MONTHLY VIEW
 #INPUT MY PAST DATA*
+#TRANSACTION_EDIT SHOULD KEEP THE FORMER VIEW
 #SOMETHING ON BUDGET, SAVE BUDGET, REVIEW BUDGET (ASSERTIVENESS), LOOK INTO AVERAGES, SAVINGS PLAN
 #IMPLEMENT ERRORS AS PER MEGATUTORIAL
 #IMPLEMENT FORGOT PASSWORD AND EMAIL VALIDATION AS PER MEGATUTORIAL

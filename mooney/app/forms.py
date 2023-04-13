@@ -7,6 +7,7 @@ from app.models import User, Account, Category, account_choices, category_choice
 import calendar
 from datetime import datetime, date
 from config import Config
+from .func import get_month_dates
 
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
@@ -71,7 +72,8 @@ class TransactionForm(FlaskForm):
     date = DateField('Date')
     tag = StringField('Tag')
     description = StringField('Description')
-    submit = SubmitField('Save')
+    submit = SubmitField('Save & Exit')
+    submit_plus = SubmitField('Save +1')
 
 class TransferForm(FlaskForm):
     source_account = QuerySelectField(query_factory=account_choices, get_label='name')
@@ -84,23 +86,25 @@ class TransferForm(FlaskForm):
     submit = SubmitField('Save')
 
 class SelectDateForm(FlaskForm):
-    start_date = DateField('Start Date', default=date.today().replace(day = 1))
-    end_date = DateField('End Date', default=date.today().replace(day = calendar.monthrange(date.today().year, date.today().month)[1]))
+    start_date = DateField('Start Date', default=get_month_dates()[0])
+    end_date = DateField('End Date', default=get_month_dates()[1])
     amount = FloatField('Amount')
     submit = SubmitField('Go')
 
 class DateTypeForm(FlaskForm):
-    start_date = DateField('Start Date', default=date.today().replace(day = 1))
-    end_date = DateField('End Date', default=date.today().replace(day = calendar.monthrange(date.today().year, date.today().month)[1]))
+    start_date = DateField('Start Date', default=get_month_dates()[0])
+    end_date = DateField('End Date', default=get_month_dates()[1])
     type = SelectMultipleField('Type', id='type', validators=[DataRequired()], 
-        choices=Config.ACCOUNT_TYPES)
+        choices=Config.ACCOUNT_TYPES, default='')
     submit = SubmitField('Go')
 
-class DateAccountForm(FlaskForm):
-    start_date = DateField('Start Date', default=date.today().replace(day = 1))
-    end_date = DateField('End Date', default=date.today().replace(day = calendar.monthrange(date.today().year, date.today().month)[1]))
-    account = QuerySelectField(query_factory=account_choices, get_label='name')
+class DateAccountCategoryForm(FlaskForm):
+    start_date = DateField('Start Date', default=get_month_dates()[0])
+    end_date = DateField('End Date', default=get_month_dates()[1])
+    account = QuerySelectField(query_factory=account_choices, get_label='name', allow_blank=True, default='')
+    category = QuerySelectField(query_factory=category_choices, get_label='name', allow_blank=True, default='')
     submit = SubmitField('Go')
+
 
 class UpdateBalanceForm(FlaskForm):
     account = QuerySelectField(query_factory=inv_acc_choices, get_label='name')

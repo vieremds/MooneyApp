@@ -6,13 +6,33 @@
   .modal-header:before {
     content: none;
   }
+  .center {
+  margin: 0;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  -ms-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+}
 </style>  
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-<h1>Categories</h1><br><br>
+<div class="row">
+  <div class="col-md-4">
+    <h1>Categories</h1>
+  </div>
+  <div class="col-md-4"></div>
+  <div class="col-md-4">
+    <div class="center">
+      <a href="{{ url_for('add_category') }}" class="btn btn-secondary">Add Category</a>
+    </div>
+  </div>
+</div>
+<br>
+<br>
 <div class="row"></div>
-{% for category in categories %}
+  {% for category in categories %}
   <div class="col-sm-4">
     <div class="card text-center">
       <div class="card-header" id="category_name" style="white-space: nowrap;" >
@@ -35,40 +55,34 @@
     </div>
     <br>
   </div>
-<!-- Modal -->
-<div id="myModal{{category.id}}" class="modal fade" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" id="{{category.id}}" role="document">
-    <!-- Modal content-->
-    <div class="modal-content">
-      <div class="modal-header" style="justify-content:space-between;">
-        <h4 class="modal-text">Edit Category</h4>
-      </div>
-      <div class="modal-body">
-        <form action="" method="post">
-          <input type="integer" id="id" name="id" value="{{ category.id }}" hidden="True"/>
-          {% for key in form %}
-          <div class="form-group">
-              <label for="{{ key }}" class="col-form-label">{{ key }}</label>
-              <input type="{{ form[key] }}" class="form-control" id="{{ key }}" name="{{ key }}" value="{{ category[key] }}"/>
-          </div> 
-          {% endfor %}
-          <div class="modal-footer">
-            <button type="submit" class="btn btn-primary">Save changes</button>
-            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-          </div>
-        </form>
+  <!-- Modal -->
+  <div id="myModal{{category.id}}" class="modal fade" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" id="{{category.id}}" role="document">
+      <!-- Modal content-->
+      <div class="modal-content">
+        <div class="modal-header" style="justify-content:space-between;">
+          <h4 class="modal-text">Edit Category</h4>
+        </div>
+        <div class="modal-body">
+          <form action="" method="post">
+            <input type="integer" id="id" name="id" value="{{ category.id }}" hidden="True"/>
+            {% for key in form %}
+            <div class="form-group">
+                <label for="{{ key }}" class="col-form-label">{{ key }}</label>
+                <input type="{{ form[key] }}" class="form-control" id="{{ key }}" name="{{ key }}" value="{{ category[key] }}"/>
+            </div> 
+            {% endfor %}
+            <div class="modal-footer">
+              <button type="submit" name="action" value="save" class="btn btn-primary">Save changes</button>
+              <button type="submit" name="action" value="delete" class="btn btn-danger">Delete</button>
+              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
-  </div>
-</div>  
-{% endfor %}
-<div class="row">
-  <div class="col-md-4"></div>
-  <div class="col-md-4"></div>
-  <div class="col-md-4">
-      <a href="{{ url_for('add_category') }}" class="btn btn-primary">Add Category</a>
-    </div>
-  </div>
+  </div>  
+  {% endfor %}
 </div>
 {% endblock %}
 {% block scripts %}

@@ -33,7 +33,7 @@
           {{ form.hidden_tag() }}
           <div class="col-md-2">
             {{ form.start_date.label }}
-            {{ form.start_date(size=32) }}
+            {{ form.start_date(size=32, onchange="submit()") }}
           </div>
           <div class="col-md-2">
             {{ form.end_date.label }}
