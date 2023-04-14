@@ -28,25 +28,26 @@
         </div>
     </div>
     <br>
+    <br>
     <div>
       <form action="" method="post">
         {{ form.hidden_tag() }}
         <div class="col-md-2">
           {{ form.start_date.label }}
-          {{ form.start_date(size=32, onchange="submit()") }}
+          {{ form.start_date(style="width: 100%", onchange="submit()") }}
         </div>
         <div class="col-md-2">
           {{ form.end_date.label }}
-          {{ form.end_date(size=32, onchange="submit()") }}
+          {{ form.end_date(style="width: 100%", onchange="submit()") }}
         </div>
-        <div class="col-md-3">
-          {{ form.type.label }}<br>
+        <div class="col-md-4">
+          {{ form.type.label }}
           {{ form.type(class_="select2", style="width: 100%",onchange="submit()") }}<br>
         </div>
       </form>
-      <br>
-      <br>
     </div>
+    <br>
+    <br>
     <div>
       <br>
       <br>
@@ -105,4 +106,17 @@
         $('#data').DataTable();
     });
     </script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function(event) { 
+          var scrollpos = localStorage.getItem('scrollpos');
+          if (scrollpos) window.scrollTo(0, scrollpos);
+      });
+  
+      window.onbeforeunload = function(e) {
+          localStorage.setItem('scrollpos', window.scrollY);
+      };
+      jQuery( ".date-form").submit( function(e) {
+          localStorage.setItem('scrollpos', window.scrollY);
+      });
+  </script>
 {% endblock %}

@@ -38,34 +38,36 @@
 <br>
 <form action="" method="post">
   {{ form.hidden_tag() }}
-  <div class="col-md-2">
+  <div class="col-sm-2">
       {{ form.start_date.label }}
-      {{ form.start_date(size=32, onchange="submit()") }}
+      {{ form.start_date(style="width: 100%", onchange="submit()") }}
   </div>
-  <div class="col-md-2">
+  <div class="col-sm-2">
     {{ form.end_date.label }}
-    {{ form.end_date(size=32, onchange="submit()") }}
+    {{ form.end_date(style="width: 100%", onchange="submit()") }}
   </div>
-  <div class="col-md-2">
-    <br>
-    <a href="{{ url_for('add_transaction') }}" class="btn btn-primary">Add Transaction</a>
-  </div>
-  <div class="col-md-2">
-    <br>
-    <a href="{{ url_for('add_transfer') }}" class="btn btn-primary">Add Transfer</a>
-  </div>
-  {% if account_type == 'Investment' %}
-    <div class="col-md-2">
-      <br>
-      <a href="{{ url_for('update_balance') }}" class="btn btn-primary">Update Balance</a>
-    </div>
-  {% endif %}
 </form>
+<div class="col-sm-8">
+  <nav class="navbar navbar-expand-lg">
+  <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#accountActions" aria-controls="accountActions" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+  <div class="collapse navbar-collapse" id="accountActions"> 
+    <div class="float-end">
+      <a href="{{ url_for('add_transaction') }}" class="btn btn-primary">Add Transaction</a>
+      <a href="{{ url_for('add_transfer') }}" class="btn btn-primary">Add Transfer</a>
+      <!--a href="{{ url_for('update_balance') }}" class="btn btn-primary">Edit Account</a-->
+      {% if account_type == 'Investment' %}
+        <a href="{{ url_for('update_balance') }}" class="btn btn-primary">Update Balance</a>
+      {% endif %}
+    </div>
+  </div>
+  </nav>
+</div>
+<div class="row"></div>
 <br>
-<br>
-<br>
-<br>
-<table id="data" class="table table-striped">
+<div class="row">
+  <table id="data" class="table table-striped">
     <thead>
       <tr>
         <th>Date</th>
@@ -85,6 +87,7 @@
       {% endfor %}
     </tbody>
   </table>
+</div>
   <br>
   <br>
 {% endblock %}

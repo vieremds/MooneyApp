@@ -511,8 +511,8 @@ def charts():
                            giro_labels=giro_labels, values=values, income_keys=income_keys, income_values=income_values, expense_keys=expense_keys, 
                            expense_values=expense_values, range_=month_range, values_=values_, accounts_=accounts_)
 
+#MOBILE VIEW OF BALANCE, TRANSACTIONS AND CHARTS
 #BALANCE NEEDS RE-WORK, IT IS FUCKED UP FOR GIRO AND LIABILITY, INVESTMENT IS FINE
-#CHARTS SHOULD INCLUDE A NAVIGATION VIA CARROUSEL
 #INPUT MY PAST DATA*
 #SOMETHING ON BUDGET, SAVE BUDGET, REVIEW BUDGET (ASSERTIVENESS), LOOK INTO AVERAGES, SAVINGS PLAN
 #IMPLEMENT ERRORS AS PER MEGATUTORIAL
