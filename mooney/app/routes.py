@@ -9,9 +9,10 @@ from config import Config
 import pandas as pd 
 import json
 import collections
-from .func import get_balance_by_type, get_single_balance, get_category_balance, get_category_type_balance, get_month_dates
+from .func import get_balance_by_type, get_single_balance, get_category_balance, get_category_type_balance, get_month_dates, get_single_balance_at_eom
 from datetime import datetime, date, timedelta  
 import calendar
+from dateutil.relativedelta import relativedelta
 
 @app.route('/')
 @app.route('/index', methods=['GET', 'POST'])
@@ -470,15 +471,43 @@ def charts():
     else:
         start_date, end_date = get_month_dates()
 
-    labels = ["Income", "Expense", "Net"]
+    giro_labels = ["Income", "Expense", "Net"]
     values = get_category_balance(start_date, end_date)
 
     income_keys, income_values, expense_keys, expense_values = get_category_type_balance(start_date, end_date)
 
-    return render_template('charts.html', title='Chart', form=form, end_date=end_date, start_date=start_date, balance_by_type=balance_by_type,
-                           labels=labels, values=values, income_keys=income_keys, income_values=income_values, expense_keys=expense_keys, expense_values=expense_values)
+    #For Investment BAR chart
+    invest_acc = Account.query.filter_by(user_id=current_user.id).filter_by(type='Investment').all()
+    range_ = [] #Expect ["January","February","March"]
+    values_ = {} #expect {"comdirect":[1,2,3], "trade_republic":[6,1,2]}
+    
+    #Predefine the accounts in this dict with empty lists values = {'comdirect':[]}
+    for acc_ in invest_acc:
+        values_[acc_.name] = []
 
-#ADD DELETE OPTION TO TRANSACTIONS/ACCOUNT/CATEGORY EDIT FORM
+    #define range to show
+    m_range = 3
+    last_month_number = end_date.month
+    
+    for i in range(m_range):
+        #get month labels
+        month_number = last_month_number - i
+        month_name = calendar.month_name[month_number]
+        range_.append(month_name)
+        #get account balance for each invest account
+        for acc_ in invest_acc:
+            #get balance
+            balance_ = get_single_balance_at_eom(acc_, month_number)
+            values_[acc_.name].append(balance_)
+    accounts_ = list(values_.keys())
+    range_.reverse()
+    print(accounts_)
+    print(values_)
+
+    return render_template('charts.html', title='Chart', form=form, end_date=end_date, start_date=start_date, balance_by_type=balance_by_type,
+                           giro_labels=giro_labels, values=values, income_keys=income_keys, income_values=income_values, expense_keys=expense_keys, 
+                           expense_values=expense_values, range_=range_, values_=values_, accounts_=accounts_)
+
 #BALANCE NEEDS RE-WORK, IT IS FUCKED UP FOR GIRO AND LIABILITY, INVESTMENT IS FINE
 #CHARTS SHOULD INCLUDE SOMETHING ABOUT INVESTIMENTS (3Month evolution, pie chart)
 #CHARTS SHOULD INCLUDE A NAVIGATION VIA CARROUSEL

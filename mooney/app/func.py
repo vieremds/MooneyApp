@@ -124,3 +124,7 @@ def get_month_dates(st_date='', ed_date=''):
         end_date = ed_date.replace(day = calendar.monthrange(ed_date.year, ed_date.month)[1])
     
     return start_date, end_date
+
+def get_single_balance_at_eom(account, month):
+    bal = 1
+    return bal

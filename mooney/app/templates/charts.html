@@ -48,7 +48,7 @@
   <br>
   <br>
   <div>
-    <canvas id="myBarChart" style="width:100%;max-width:500px;margin: 0 auto;"></canvas>
+    <canvas id="GiroBarChart" style="width:100%;max-width:500px;margin: 0 auto;"></canvas>
   </div>
   <br>
   <br>
@@ -58,13 +58,16 @@
   </div>
   <br>
   <br>
+  <div>
+    <canvas id="InvestBarChart" style="width:100%;max-width:500px;height:400px;margin: 0 auto;"></canvas>
+  </div>
   <input type="hidden" name="scrollPosition" class="scrollPosition" />
 {% endblock %}
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
 <script type="text/javascript">
     function load_bar_chart(type, val) {
-        const BarChart = new Chart( "myBarChart", {
+        const GiroBarChart = new Chart( "GiroBarChart", {
         type: 'bar',
         data: {
             labels: type,
@@ -91,7 +94,7 @@
         }
         );
     }
-    var labels = {{ labels | tojson }}
+    var labels = {{ giro_labels | tojson }}
     var values = {{ values }}
     var barColors = ["#00aba9", "#b91d47", "#1e7145"]
     load_bar_chart(labels, values);
@@ -165,6 +168,71 @@
 		  '#FF3380', '#CCCC00', '#66E64D', '#4D80CC', '#9900B3', 
 		  '#E64D66', '#4DB380', '#FF4D4D', '#99E6E6', '#6666FF'];
     load_pie_chart(income_keys, income_values, expense_keys, expense_values);
+
+    function load_inv_bar_chart() {
+        const InvestBarChart = new Chart( "InvestBarChart", {
+            type: 'bar',
+            data: {
+                labels: range,
+                datasets: dataset
+            },
+            options: {
+                title: {
+                    display: true,
+                    text: 'Investment Overview',
+                },
+                legend: { 
+                    position: 'bottom' 
+                },
+                backgroundColor: '#dcdcdc',
+                animation: {
+                    duration: 1500, // set the animation duration in milliseconds
+                    easing: 'easeInOutQuart' // set the easing function for the animation
+                },
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    xAxes: [{
+                        stacked: true,
+                        gridLines: {
+                        display: false,
+                        }
+                    }],
+                    yAxes: [{
+                        stacked: true,
+                        ticks: {
+                        beginAtZero: true,
+                        },
+                        type: 'linear',
+                    }]
+                },
+            }
+        }
+        );
+    }
+
+    //Expect to receive; range ["January","February","March"]; values:{"comdirect":[1,2,3], "trade_republic":[6,1,2]}
+    //Then I would yet get a list of accounts ["comdirect","trade_republic"]
+    var range = {{ range_ | tojson }}
+    var accounts = {{ accounts_| tojson }}
+    var values = {{ values_ | tojson }}
+
+    //define where the dataset is stored to be passed to the Chart
+    const dataset = [];
+    colourInv = ['#caf270','#45c490','#008d93','#2e5468','#FBE7C6','#B4F8C8','#A0E7E5','#FFAEBC','#B99095','#FCB5AC','#B5E5CF','#3D5B59'];
+
+    //dataset builder based on accounts
+    accounts.forEach(function (account, i) {
+            dataset.push({
+                label:account, 
+                data:values[account], //here I expect to pass values that match range length
+                backgroundColor: colourInv[i],
+                borderWidth: 2,
+            })
+        });
+
+    load_inv_bar_chart()
+
 </script>
 <script>
     document.addEventListener("DOMContentLoaded", function(event) { 
