@@ -9,7 +9,7 @@ from config import Config
 import pandas as pd 
 import json
 import collections
-from .func import get_balance_by_type, get_single_balance, get_category_balance, get_category_type_balance, get_month_dates, get_single_balance_at_eom
+from .func import get_balance_by_type, get_single_balance, get_category_balance, get_category_type_balance, get_month_dates, get_balance_at_eom
 from datetime import datetime, date, timedelta  
 import calendar
 from dateutil.relativedelta import relativedelta
@@ -315,13 +315,12 @@ def balance_view():
                     acc_= False
 
                 if acc_:
-                    #{2023-03-23: [1000, "balbalba"], 2023-04-23: [1000, "balbalba"]}
+                    #{'Comdirect': {'2023-01': 40296.0, '2023-02': 39374.0, '2023-03': 38765.0}}
                     if m in acc_:
                         acc_trimmed[acc.name][m] = acc_[m][0]
                     else:
                         if idx-1 >= 0:
                             acc_trimmed[acc.name][m] = acc_trimmed[acc.name][month_range[idx-1]]
-
         else:
             transaction_balance = db.session.query(func.sum(Transaction.amount), 
                 func.strftime("%Y-%m", Transaction.date).label('month')).filter(Transaction.account.in_([acc.id])).group_by(func.strftime("%Y-%m",
@@ -369,7 +368,6 @@ def balance_view():
                 else: 
                     acc_trimmed[acc.name][m] = balance
                 #Structure {N26: [03-2022:1000, 04-2023:2000, 05-2023:2500]}
-
     return render_template('balance_view.html', title='Balance View', form=form, balance_by_type=balance_by_type, month_range=month_range, acc_range=acc_range, acc_trimmed=acc_trimmed)
 
 @app.route('/transactions', methods=['GET', 'POST'])
@@ -478,42 +476,44 @@ def charts():
 
     #For Investment BAR chart
     invest_acc = Account.query.filter_by(user_id=current_user.id).filter_by(type='Investment').all()
-    range_ = [] #Expect ["January","February","March"]
     values_ = {} #expect {"comdirect":[1,2,3], "trade_republic":[6,1,2]}
+    accounts_ = []
+    month_range = []
     
     #Predefine the accounts in this dict with empty lists values = {'comdirect':[]}
     for acc_ in invest_acc:
         values_[acc_.name] = []
 
     #define range to show
-    m_range = 3
-    last_month_number = end_date.month
+    month_range = pd.date_range(start_date,end_date, 
+            freq='MS').strftime("%Y-%m").tolist()
     
-    for i in range(m_range):
-        #get month labels
-        month_number = last_month_number - i
-        month_name = calendar.month_name[month_number]
-        range_.append(month_name)
-        #get account balance for each invest account
-        for acc_ in invest_acc:
-            #get balance
-            balance_ = get_single_balance_at_eom(acc_, month_number)
-            values_[acc_.name].append(balance_)
-    accounts_ = list(values_.keys())
-    range_.reverse()
-    print(accounts_)
-    print(values_)
+    #month_range.append(start_date.strftime("%Y-%m"))
+    #month_range.append(end_date.strftime("%Y-%m"))
+    
+    #get only uniques by the use of set
+    min_range = 3
+    while len(month_range) < min_range:
+        prev_month, _ = get_month_dates(st_date=start_date, get_previous=True)
+        month_range.insert(0, prev_month.strftime("%Y-%m"))
+        start_date = prev_month
+   
+    #{'Comdirect': {'2023-01': 40296.0, '2023-02': 39374.0, '2023-03': 38765.0}, 'Kraken': {'2023-01': 103.0, '2023-02': 103.0, '2023-03': 103.0}}
+    acc_trimmed = get_balance_at_eom(invest_acc,month_range)
+
+    #expected format is values:{"comdirect":[1,2,3], "trade_republic":[6,1,2]}
+    for acc in invest_acc:
+        accounts_.append(acc.name)
+        for m in month_range:
+            values_[acc.name].append(acc_trimmed[acc.name][m])
 
     return render_template('charts.html', title='Chart', form=form, end_date=end_date, start_date=start_date, balance_by_type=balance_by_type,
                            giro_labels=giro_labels, values=values, income_keys=income_keys, income_values=income_values, expense_keys=expense_keys, 
-                           expense_values=expense_values, range_=range_, values_=values_, accounts_=accounts_)
+                           expense_values=expense_values, range_=month_range, values_=values_, accounts_=accounts_)
 
 #BALANCE NEEDS RE-WORK, IT IS FUCKED UP FOR GIRO AND LIABILITY, INVESTMENT IS FINE
-#CHARTS SHOULD INCLUDE SOMETHING ABOUT INVESTIMENTS (3Month evolution, pie chart)
 #CHARTS SHOULD INCLUDE A NAVIGATION VIA CARROUSEL
-#CHARTS SHOULD INCLUDE A VIEW OTHER THAN MONTHLY VIEW
 #INPUT MY PAST DATA*
-#TRANSACTION_EDIT SHOULD KEEP THE FORMER VIEW
 #SOMETHING ON BUDGET, SAVE BUDGET, REVIEW BUDGET (ASSERTIVENESS), LOOK INTO AVERAGES, SAVINGS PLAN
 #IMPLEMENT ERRORS AS PER MEGATUTORIAL
 #IMPLEMENT FORGOT PASSWORD AND EMAIL VALIDATION AS PER MEGATUTORIAL

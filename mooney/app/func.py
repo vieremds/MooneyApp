@@ -9,8 +9,7 @@ from datetime import datetime, date, timedelta
 import calendar 
 
 
-def get_balance_by_type():
-    types = Config.ACCOUNT_TYPES
+def get_balance_by_type(types = Config.ACCOUNT_TYPES):
     balance_by_type = {}
 
     for type in types:
@@ -113,10 +112,14 @@ def get_category_type_balance(start_date, end_date):
 
     return income_keys, income_values, expense_keys, expense_values
 
-def get_month_dates(st_date='', ed_date=''):
-    if not st_date and not ed_date:
+def get_month_dates(st_date='', ed_date='', get_previous=False):
+    if not st_date and not ed_date :
         today = date.today()
         first = today.replace(day=1)
+        end_date = first - timedelta(days=1)
+        start_date = end_date.replace(day=1)
+    elif get_previous:
+        first = st_date.replace(day=1)
         end_date = first - timedelta(days=1)
         start_date = end_date.replace(day=1)
     else:
@@ -125,6 +128,29 @@ def get_month_dates(st_date='', ed_date=''):
     
     return start_date, end_date
 
-def get_single_balance_at_eom(account, month):
-    bal = 1
-    return bal
+def get_balance_at_eom(accounts, month_range):
+    #only covering Investment accounts for now
+    
+    acc_trimmed = {}
+
+    for acc in accounts:
+        acc_trimmed[acc.name] = {}
+        
+        for idx, m in enumerate(month_range): 
+            acc_trimmed[acc.name][m] = acc.start_balance
+            
+            try:
+                acc_= json.loads(acc.balance_archive)
+                acc_= collections.OrderedDict(sorted(acc_.items()))
+            except:
+                acc_= False
+
+            if acc_:
+                #{2023-03-23: [1000, "balbalba"], 2023-04-23: [1000, "balbalba"]}
+                if m in acc_:
+                    acc_trimmed[acc.name][m] = acc_[m][0]
+                else:
+                    if idx-1 >= 0:
+                        acc_trimmed[acc.name][m] = acc_trimmed[acc.name][month_range[idx-1]]
+    
+    return acc_trimmed

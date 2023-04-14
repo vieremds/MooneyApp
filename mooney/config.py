@@ -11,3 +11,4 @@ class Config(object):
     CURRENCIES = [('EUR', 'Euro'), ('BRL', 'Brasilian-Real'), ('USD', 'Dollar'), ('GBP','British-Pounds')]
     CATEGORY_TYPES = ['Income','Expense']
     LOG_TO_STDOUT = os.environ.get('LOG_TO_STDOUT')
+    MONTHS = ['January','February','March', 'April','May','June','July','August','September','October','November','December']
