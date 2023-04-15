@@ -73,7 +73,7 @@ class TransactionForm(FlaskForm):
     tag = StringField('Tag')
     description = StringField('Description')
     submit = SubmitField('Save & Exit')
-    submit = SubmitField('Save +1')
+    submit_plus = SubmitField('Save +1')
 
 class TransferForm(FlaskForm):
     source_account = QuerySelectField(query_factory=account_choices, get_label='name')

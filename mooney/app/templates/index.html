@@ -8,7 +8,7 @@
         {% for k,v in balance_by_type.items() %}
         {% set y.value = y.value + v %}
         <div class="card">
-            <h5 class="card-header">{{ k }}</h5>
+          <a href="{{ url_for('balance_view', types=k , start_date=form.start_date.data, end_date=form.end_date.data) }}"><h5 class="card-header">{{ k }}</h5></a>
             <div class="card-body">
               <h3 class="text-center">{{ "€ %.2f" % v }}</h3>
             </div>
@@ -90,8 +90,6 @@
           </tbody>
       </table>
     </div>
-    <br>
-    <br>
 {% endblock %}
 {% block scripts %}
     <script type="text/javascript">
@@ -100,11 +98,6 @@
        placeholder: 'Select Type',
 });
       });
-    </script>
-    <script>
-    $(document).ready(function () {
-        $('#data').DataTable();
-    });
     </script>
     <script>
       document.addEventListener("DOMContentLoaded", function(event) { 

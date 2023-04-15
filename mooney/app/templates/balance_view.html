@@ -33,13 +33,13 @@
           {{ form.hidden_tag() }}
           <div class="col-md-2">
             {{ form.start_date.label }}
-            {{ form.start_date(size=32, onchange="submit()") }}
+            {{ form.start_date(style="width: 100%", onchange="submit()") }}
           </div>
           <div class="col-md-2">
             {{ form.end_date.label }}
-            {{ form.end_date(size=32, onchange="submit()") }}
+            {{ form.end_date(style="width: 100%", onchange="submit()") }}
           </div>
-          <div class="col-md-3">
+          <div class="col-md-4">
             {{ form.type.label }}<br>
             {{ form.type(class_="select2", style="width: 100%",onchange="submit()") }}<br>
           </div>
@@ -72,8 +72,6 @@
     </tbody>
     </table>
   </div>
-  <br>
-  <br>
 {% endblock %}
 {% block scripts %}
 <script type="text/javascript">
@@ -81,11 +79,6 @@
         $('.select2').select2({
             placeholder: 'Select Type',
         });
-    });
-</script>
-<script>
-    $(document).ready(function () {
-        $('#data').DataTable();
     });
 </script>
 {% endblock %}

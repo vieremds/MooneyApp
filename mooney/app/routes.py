@@ -38,13 +38,12 @@ def index():
     Category, Category.id == Transaction.category).filter(Transaction.account.in_(account)).filter(
     Transaction.date.between(form.start_date.data, form.end_date.data)).group_by(
     Transaction.category, func.strftime("%Y-%m", Transaction.date)).order_by(Transaction.date.asc()).all()
-
+    
     for trx in account_trx:
         if trx.month not in range_desc:
             range_desc.append(trx.month)
         if trx.name not in cat_range:
             cat_range.append(trx.name)
-        if trx.budget not in bdgt_range:
             bdgt_range.append(trx.budget)
 
     for trx in account_trx:
@@ -283,17 +282,24 @@ def balance_view():
     form = DateTypeForm()
     month_range = []
     acc_range = []
-    
-    balance_by_type = get_balance_by_type()
-
-    accounts = db.session.query(Account.id, Account.name, Account.type,Account.start_balance, Account.balance_archive, 
-                                 Account.created_at).filter_by(user_id=current_user.id).all()
      
-    if form.type.data:
+    types = [request.args.get('types')]
+    
+    if not types[0]:
+        balance_by_type = get_balance_by_type()
+        start_date = form.start_date.data
+        end_date = form.end_date.data
         accounts = db.session.query(Account.id, Account.name, Account.type,Account.start_balance, Account.balance_archive, 
-                                 Account.created_at).filter(Account.type.in_(form.type.data)).filter_by(user_id=current_user.id).all()
+                                 Account.created_at).filter_by(user_id=current_user.id).all()
+    else:
+        balance_by_type = get_balance_by_type(types)
+        start_date = datetime.strptime(request.args.get('start_date'), "%Y-%m-%d")
+        end_date =  datetime.strptime(request.args.get('end_date'), "%Y-%m-%d")
+        accounts = db.session.query(Account.id, Account.name, Account.type,Account.start_balance, Account.balance_archive,
+                                    Account.created_at).filter(Account.type.in_(types)).filter_by(user_id=current_user.id).all() 
         
-    month_range = pd.date_range(form.start_date.data,form.end_date.data, 
+    #define range to show
+    month_range = pd.date_range(start_date,end_date, 
             freq='MS').strftime("%Y-%m").tolist()
     
     acc_trimmed = {}
@@ -511,7 +517,7 @@ def charts():
                            giro_labels=giro_labels, values=values, income_keys=income_keys, income_values=income_values, expense_keys=expense_keys, 
                            expense_values=expense_values, range_=month_range, values_=values_, accounts_=accounts_)
 
-#MOBILE VIEW OF BALANCE, TRANSACTIONS AND CHARTS
+#ADD TRANSACTIONS CATEGORY TOGGLE -> LIMIT CATEGORY AND ACCOUNT OPTIONS
 #BALANCE NEEDS RE-WORK, IT IS FUCKED UP FOR GIRO AND LIABILITY, INVESTMENT IS FINE
 #INPUT MY PAST DATA*
 #SOMETHING ON BUDGET, SAVE BUDGET, REVIEW BUDGET (ASSERTIVENESS), LOOK INTO AVERAGES, SAVINGS PLAN

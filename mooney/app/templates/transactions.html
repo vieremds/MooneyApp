@@ -7,7 +7,6 @@
     content: none;
   }
 </style>  
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 <div>
@@ -15,11 +14,11 @@
       {{ form.hidden_tag() }}
       <div class="col-md-2">
         {{ form.start_date.label }}
-        {{ form.start_date(size=32, onchange="submit()") }}
+        {{ form.start_date(style="width: 100%", onchange="submit()") }}
       </div>
       <div class="col-md-2">
         {{ form.end_date.label }}
-        {{ form.end_date(size=32, onchange="submit()") }}
+        {{ form.end_date(style="width: 100%", onchange="submit()") }}
       </div>
       <div class="col-md-3">
         {{ form.account.label }}<br>
@@ -38,16 +37,16 @@
     <br>
     <table id="data" class="table table-striped">
         <thead>
-            <tr>
-                <th>Id</th>
-                <th>Date</th>
-                <th>Amount</th>
-                <th>Account</th>
-                <th>Category</th>
-                <th>Tag</th>
-                <th>Description</th>
-                <th>Created_At</th>
-            </tr>
+          <tr>
+              <th>Id</th>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>Account</th>
+              <th>Category</th>
+              <th>Tag</th>
+              <th>Description</th>
+              <th>Created_At</th>
+          </tr>
         </thead>
         <tbody>
         {% for trx in transactions %}
@@ -93,19 +92,19 @@
         </tbody>
     </table>
   </div>
-
 {% endblock %}
 {% block scripts %}
+<script> const $ = jQuery; </script>
+<script>
+  $(document).ready(function () {
+      $('#data').DataTable();
+  });
+</script>
 <script type="text/javascript">
     $(document).ready(function() {
         $('.select2').select2({
             placeholder: 'Select Type',
         });
-    });
-</script>
-<script>
-    $(document).ready(function () {
-        $('#data').DataTable();
     });
 </script>
 {% endblock %}

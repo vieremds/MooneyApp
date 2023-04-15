@@ -9,7 +9,7 @@ from datetime import datetime, date, timedelta
 import calendar 
 
 
-def get_balance_by_type(types = Config.ACCOUNT_TYPES):
+def get_balance_by_type(types=Config.ACCOUNT_TYPES):
     balance_by_type = {}
 
     for type in types:
