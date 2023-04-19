@@ -53,7 +53,7 @@
           <tr>
             <td><a data-toggle="modal" data-target="#myModal{{trx.id}}" href="#myModal{{trx.id}}">{{ trx.id }}</a></td>
             <td>{{ trx.date }}</td>
-            <td>{{ trx.amount }}</td>
+            <td>{{ "€ %.2f" % trx.amount }}</td>
             <td>{{ trx.account }}</td>
             <td>{{ trx.category }}</td>
             <td>{{ trx.tag }}</td>
@@ -71,6 +71,8 @@
                 <div class="modal-body">
                   <form action="/transactions/edit" method="post">
                     <input type="integer" id="id" name="id" value="{{ trx.id }}" hidden="True"/>
+                    <input type="text" id="prev_start_date" name="prev_start_date" value="{{ form.start_date.data }}" hidden="True"/>
+                    <input type="text" id="prev_end_date" name="prev_end_date" value="{{ form.end_date.data }}" hidden="True"/>
                     {% for key in form_id %}
                     <div class="form-group">
                         <label for="{{ key }}" class="col-form-label">{{ key }}</label>
@@ -97,8 +99,18 @@
 <script> const $ = jQuery; </script>
 <script>
   $(document).ready(function () {
-      $('#data').DataTable();
-  });
+      $('#data').DataTable({
+          responsive: true,
+          searching: true,
+          ordering: true,
+          order: [[0, 'desc']],
+          pageLength: [20],
+          rowReorder: {
+            selector: 'td:nth-child(2)'
+        },
+        } 
+      );
+      });
 </script>
 <script type="text/javascript">
     $(document).ready(function() {

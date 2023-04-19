@@ -6,7 +6,37 @@
     <form action="" method="post">
         <div class="row">
             <div class="col-md-4">
-                {{ wtf.quick_form(form) }}
+                {{ wtf.form_field(form.source_account, style="background-color: #FFE8E7;") }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                {{ wtf.form_field(form.target_account, style="background-color: #EDFFFF;") }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                {{ wtf.form_field(form.date) }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                {{ wtf.form_field(form.amount) }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                {{ wtf.form_field(form.currency) }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                {{ wtf.form_field(form.description) }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                {{ wtf.form_field(form.submit) }}
             </div>
         </div>
     </form>

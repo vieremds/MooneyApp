@@ -78,11 +78,14 @@
                 <tr>
                   <td><a href="{{ url_for('transactions', categories=cat, start_date=form.start_date.data, end_date=form.end_date.data) }}"><i class="fa fa-plus"></i></a></td>
                   <td>{{ cat }}</td>    
-                  <td>{{ bdgt_range[i.value] }}</td> 
+                  <td>{{ "€ %.2f" % bdgt_range[i.value] }}</td> 
                   {% set i.value = i.value + 1 %}  
                   {% set trx_list = trx_by_cat.get(cat) %}
                   {% for sum in trx_list %}
-                    <td>{{ sum|default('0.00') }}</td>
+                    {% if not sum %}
+                      {% set sum = 0.00 %}
+                    {% endif %}
+                    <td>{{ "€ %.2f" % sum }}</td>
                   {% endfor %}
                 </tr>
               {% endfor %}

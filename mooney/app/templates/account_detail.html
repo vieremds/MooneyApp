@@ -28,7 +28,7 @@
     <div class="card">
       <h6 class="card-header">To Reconcile</h6>
       <div class="card-body">
-        <h3 class="text-center">€ {{ diff }}    /   {{ diff_p }}%</h3>
+        <h3 class="text-center">{{ "€ %.2f" % diff }}   /   {{ diff_p }}%</h3>
       </div>
       <div class="card-footer">
         <small class="text-muted">Gap in account transactions</small>
@@ -80,7 +80,7 @@
       {% for trx in account_trx %}
       <tr>
           <td>{{ trx.date }}</td>    
-          <td>{{ trx.amount }}</td> 
+          <td>{{ "€ %.2f" % trx.amount }}</td> 
           <td>{{ trx.name }}</td>
           <td>{{ trx.tag }}</td>
       </tr>
@@ -97,4 +97,17 @@
       $('#data').DataTable();
     });
   </script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function(event) { 
+        var scrollpos = localStorage.getItem('scrollpos');
+        if (scrollpos) window.scrollTo(0, scrollpos);
+    });
+
+    window.onbeforeunload = function(e) {
+        localStorage.setItem('scrollpos', window.scrollY);
+    };
+    jQuery( ".date-form").submit( function(e) {
+        localStorage.setItem('scrollpos', window.scrollY);
+    });
+</script>
 {% endblock %}

@@ -26,11 +26,11 @@ def get_balance_by_type(types=Config.ACCOUNT_TYPES):
                 if acc_:
                     #get last key, and amount
                     key = next(reversed(acc_))
-                    balances.append(acc_[key][0])
+                    balances.append(round(float(acc_[key][0] or 0.00), 2))
                 else:
-                    balances.append(acc.start_balance)
+                    balances.append(round(float(acc.start_balance or 0.00), 2))
 
-            balance_by_type[type] = sum(balances)
+            balance_by_type[type] = normal_amt(sum(balances))
 
         else:
             account = [id[0] for id in db.session.query(Account.id).filter_by(type=type).filter_by(user_id=current_user.id).all()]
@@ -41,9 +41,9 @@ def get_balance_by_type(types=Config.ACCOUNT_TYPES):
             trf_positive = Transfer.query.filter(Transfer.target_account.in_(account)).with_entities(func.sum(Transfer.amount).label('total')).first().total
             start_balance = Account.query.filter(Account.id.in_(account)).with_entities(func.sum(Account.start_balance).label('total')).first().total
 
-            transfer_balance = float(trf_positive or 0.0) - float(trf_negative or 0.0)
-            balance = float(start_balance or 0.0) + float(transaction_balance or 0.0) + transfer_balance
-            balance_by_type[type] = balance
+            transfer_balance = round(float(trf_positive or 0.00), 2) - round(float(trf_negative or 0.00),2)
+            balance = round(float(start_balance or 0.00),2) + round(float(transaction_balance or 0.0),2) + transfer_balance
+            balance_by_type[type] = normal_amt(balance)
     
     return balance_by_type
 
@@ -54,11 +54,11 @@ def get_single_balance(account):
         trf_positive = Transfer.query.filter(Transfer.target_account.in_([account.id])).with_entities(func.sum(Transfer.amount).label('total')).first().total
         start_balance = Account.query.filter(Account.id.in_([account.id])).with_entities(func.sum(Account.start_balance).label('total')).first().total
 
-        transfer_balance = float(trf_positive or 0.0) - float(trf_negative or 0.0)
-        balance = float(start_balance or 0.0) + float(transaction_balance or 0.0) + transfer_balance
+        transfer_balance = round(float(trf_positive or 0.00),2) - round(float(trf_negative or 0.00),2)
+        balance = round(float(start_balance or 0.00),2) + round(float(transaction_balance or 0.00),2) + transfer_balance
 
     else:
-        balance = account.start_balance
+        balance = normal_amt(account.start_balance)
         
         try:
             acc_= json.loads(account.balance_archive)
@@ -68,7 +68,7 @@ def get_single_balance(account):
 
         if acc_:
             last_key, last_value = acc_.popitem()
-            balance = last_value[0]
+            balance = normal_amt(last_value[0])
     
     return balance
 
@@ -137,7 +137,7 @@ def get_balance_at_eom(accounts, month_range):
         acc_trimmed[acc.name] = {}
         
         for idx, m in enumerate(month_range): 
-            acc_trimmed[acc.name][m] = acc.start_balance
+            acc_trimmed[acc.name][m] = normal_amt(acc.start_balance)
             
             try:
                 acc_= json.loads(acc.balance_archive)
@@ -148,9 +148,13 @@ def get_balance_at_eom(accounts, month_range):
             if acc_:
                 #{2023-03-23: [1000, "balbalba"], 2023-04-23: [1000, "balbalba"]}
                 if m in acc_:
-                    acc_trimmed[acc.name][m] = acc_[m][0]
+                    acc_trimmed[acc.name][m] = normal_amt(acc_[m][0])
                 else:
                     if idx-1 >= 0:
-                        acc_trimmed[acc.name][m] = acc_trimmed[acc.name][month_range[idx-1]]
+                        acc_trimmed[acc.name][m] = normal_amt(acc_trimmed[acc.name][month_range[idx-1]])
     
     return acc_trimmed
+
+def normal_amt(amount):
+    amt = round(float(amount or 0.00),2)
+    return amt

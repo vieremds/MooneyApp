@@ -445,7 +445,7 @@ def transactions():
     transactions = db.session.query(Transaction.id, Transaction.date, Transaction.amount, Transaction.currency, Account.name.label('account'), 
         Category.name.label('category'), Transaction.tag, Transaction.description, Transaction.created_at).join(Account, Account.id == Transaction.account).join(
         Category, Category.id == Transaction.category).filter(Transaction.account.in_(accounts)).filter(
-    Transaction.date.between(start_date, end_date)).filter(Transaction.category.in_(categories)).order_by(Transaction.date.desc()).all()
+    Transaction.date.between(start_date, end_date)).filter(Transaction.category.in_(categories)).order_by(Transaction.id.desc()).all()
 
     return render_template('transactions.html', title='Transactions', form=form, transactions=transactions, form_id=form_id)
 
@@ -487,8 +487,10 @@ def transactions_edit():
     #Else is not expected, putting in here case a different meaning of POST is received
     else:
         flash('POST action not known. No action has been taken')
+    
+    print(request.form['prev_start_date'])
 
-    return redirect(url_for('transactions'), code=307)
+    return redirect(url_for('transactions', start_date=request.form['prev_start_date'], end_date=request.form['prev_end_date']), code=307)
 
 @app.route('/charts', methods=['GET', 'POST'])
 @login_required
@@ -548,6 +550,8 @@ def charts():
 #BALANCE NEEDS RE-WORK, IT IS FUCKED UP FOR GIRO AND LIABILITY, INVESTMENT IS FINE
 #LOCAL MYSQL DATABASE
 #INPUT MY PAST DATA*
+#CURRENCY LOGIC, CONVERSION TO DEFAULT BASED ON MARKET CURERNT DATA
+#ASSET LOGIC, INSIDE INVESTMENT ACCOUNT, CREATE ASSET LOGIC TO STORE AND RETRIEVE MARKET VALUE - CACHING LATEST AVAILABLE
 #SOMETHING ON BUDGET, SAVE BUDGET, REVIEW BUDGET (ASSERTIVENESS), LOOK INTO AVERAGES, SAVINGS PLAN
 #IMPLEMENT ERRORS AS PER MEGATUTORIAL
 #IMPLEMENT FORGOT PASSWORD AND EMAIL VALIDATION AS PER MEGATUTORIAL

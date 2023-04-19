@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField, FloatField, SelectField, DateField, SelectMultipleField, RadioField
+from wtforms import StringField, PasswordField, BooleanField, SubmitField, FloatField, SelectField, DateField, SelectMultipleField, DecimalField
 from wtforms_sqlalchemy.fields import QuerySelectField
-from wtforms.validators import ValidationError, DataRequired, Email, EqualTo, NumberRange
+from wtforms.validators import ValidationError, DataRequired, Email, EqualTo, NumberRange, Optional
 from wtforms.widgets.core import Select
 from app.models import User, Account, Category, account_choices, category_choices, inv_acc_choices, not_inv_acc_choices, income_categories, expense_categories
 import calendar
@@ -40,8 +40,8 @@ class AddAccountForm(FlaskForm):
     currency = SelectField('Currency', validators=[DataRequired()],
         choices=Config.CURRENCIES)
     description = StringField('Description')
-    start_balance = FloatField('Start_Balance')
-    balance_date = DateField('Balance_Date')
+    start_balance = DecimalField('Start_Balance', default=0.00)
+    balance_date = DateField('Date')
     submit = SubmitField('Add')
     def validate_name(self, name):
         account = Account.query.filter_by(name=name.data).first()
@@ -65,11 +65,11 @@ class CategoryForm(FlaskForm):
 
 class TransactionForm(FlaskForm):
     account = QuerySelectField(query_factory=not_inv_acc_choices, get_label='name')
-    cat_choices = SelectField('Category Group - Optional', choices=Config.CATEGORY_TYPES, default='All')
+    cat_choices = SelectField('Category Group - Optional', choices=Config.CATEGORY_TYPES, validators=[Optional(strip_whitespace=True)], default='All')
     category = QuerySelectField(query_factory=category_choices, get_label='name', allow_blank=True)
     cat_income = QuerySelectField('Category', query_factory=income_categories, get_label='name', default=None, allow_blank=True)
     cat_expense = QuerySelectField('Category', query_factory=expense_categories, get_label='name', default=None, allow_blank=True)
-    amount = FloatField('Amount')
+    amount = DecimalField('Amount', default=0.00)
     currency = SelectField('Currency', validators=[DataRequired()],
         choices=Config.CURRENCIES)
     date = DateField('Date')
@@ -82,7 +82,7 @@ class TransferForm(FlaskForm):
     source_account = QuerySelectField(query_factory=account_choices, get_label='name')
     target_account = QuerySelectField(query_factory=account_choices, get_label='name')
     date = DateField('Date')
-    amount = FloatField('Amount')
+    amount = DecimalField('Amount', validators=[NumberRange(min=0.01, message='Amount must be positive')], default=0.00)
     currency = SelectField('Currency', validators=[DataRequired()],
         choices=Config.CURRENCIES)
     description = StringField('Description')
@@ -111,7 +111,7 @@ class DateAccountCategoryForm(FlaskForm):
 
 class UpdateBalanceForm(FlaskForm):
     account = QuerySelectField(query_factory=inv_acc_choices, get_label='name')
-    amount = FloatField('Amount', validators=[DataRequired()])
-    date = DateField('Date', validators=[DataRequired()])
+    amount = DecimalField('Amount', validators=[DataRequired()], default=0.00)
+    date = DateField('Date')
     description = StringField('Description')
     submit = SubmitField('Save')
