@@ -188,9 +188,20 @@ def categories():
 def add_transaction():
     form = TransactionForm()
     if form.validate_on_submit():
-        #Competence is not yet an option
-        #think about transaction signs
-        transaction = Transaction(account=form.account.data.id, category=form.category.data.id, amount=form.amount.data, 
+        #we have 3 forms.fields for category given the new layout, only one can be true
+        amt = form.amount.data
+        
+        #Normalizing amount, in Income always positive, if Expense always negative
+        if form.cat_expense.data:
+            cat = form.cat_expense.data.id
+            amt = -abs(amt)
+        elif form.cat_income.data:
+            cat = form.cat_income.data.id
+            amt = abs(amt)
+        else:
+            cat = form.category.data.id
+        
+        transaction = Transaction(account=form.account.data.id, category=cat, amount=amt, 
                                   currency=form.account.data.currency, date=form.date.data, 
                                   description=form.description.data, tag=form.tag.data)
         db.session.add(transaction)
@@ -282,22 +293,39 @@ def balance_view():
     form = DateTypeForm()
     month_range = []
     acc_range = []
-     
-    types = [request.args.get('types')]
     
-    if not types[0]:
+    #There are 3 load paths
+    #1) Default -> All accounts and Default form dates
+    #2) Types filtered in-page
+    #3) Types forwarded through request
+
+    #get dates for 1 and 2 - which are the same
+    start_date = form.start_date.data
+    end_date = form.end_date.data
+
+    #check if we have info from in-page form 
+    if form.type.data: 
+        types = form.type.data
         balance_by_type = get_balance_by_type()
-        start_date = form.start_date.data
-        end_date = form.end_date.data
-        accounts = db.session.query(Account.id, Account.name, Account.type,Account.start_balance, Account.balance_archive, 
-                                 Account.created_at).filter_by(user_id=current_user.id).all()
-    else:
-        balance_by_type = get_balance_by_type(types)
-        start_date = datetime.strptime(request.args.get('start_date'), "%Y-%m-%d")
-        end_date =  datetime.strptime(request.args.get('end_date'), "%Y-%m-%d")
         accounts = db.session.query(Account.id, Account.name, Account.type,Account.start_balance, Account.balance_archive,
                                     Account.created_at).filter(Account.type.in_(types)).filter_by(user_id=current_user.id).all() 
-        
+
+    #Retrieve information that was passed through request, not form
+    elif request.args.get('types'):
+        types = request.args.get('types')
+        #as we are here we overwrite dates
+        start_date = datetime.strptime(request.args.get('start_date'), "%Y-%m-%d")
+        end_date =  datetime.strptime(request.args.get('end_date'), "%Y-%m-%d")
+        balance_by_type = get_balance_by_type(types)
+        accounts = db.session.query(Account.id, Account.name, Account.type,Account.start_balance, Account.balance_archive,
+                                    Account.created_at).filter(Account.type.in_(types)).filter_by(user_id=current_user.id).all() 
+    #Means no form, and no request -> default only
+    else: 
+        # Load default stuff with all accounts
+        balance_by_type = get_balance_by_type()
+        accounts = db.session.query(Account.id, Account.name, Account.type,Account.start_balance, Account.balance_archive, 
+                                    Account.created_at).filter_by(user_id=current_user.id).all()
+            
     #define range to show
     month_range = pd.date_range(start_date,end_date, 
             freq='MS').strftime("%Y-%m").tolist()
@@ -517,8 +545,8 @@ def charts():
                            giro_labels=giro_labels, values=values, income_keys=income_keys, income_values=income_values, expense_keys=expense_keys, 
                            expense_values=expense_values, range_=month_range, values_=values_, accounts_=accounts_)
 
-#ADD TRANSACTIONS CATEGORY TOGGLE -> LIMIT CATEGORY AND ACCOUNT OPTIONS
 #BALANCE NEEDS RE-WORK, IT IS FUCKED UP FOR GIRO AND LIABILITY, INVESTMENT IS FINE
+#LOCAL MYSQL DATABASE
 #INPUT MY PAST DATA*
 #SOMETHING ON BUDGET, SAVE BUDGET, REVIEW BUDGET (ASSERTIVENESS), LOOK INTO AVERAGES, SAVINGS PLAN
 #IMPLEMENT ERRORS AS PER MEGATUTORIAL

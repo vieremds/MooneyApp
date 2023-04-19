@@ -3,7 +3,7 @@ from wtforms import StringField, PasswordField, BooleanField, SubmitField, Float
 from wtforms_sqlalchemy.fields import QuerySelectField
 from wtforms.validators import ValidationError, DataRequired, Email, EqualTo, NumberRange
 from wtforms.widgets.core import Select
-from app.models import User, Account, Category, account_choices, category_choices, inv_acc_choices
+from app.models import User, Account, Category, account_choices, category_choices, inv_acc_choices, not_inv_acc_choices, income_categories, expense_categories
 import calendar
 from datetime import datetime, date
 from config import Config
@@ -64,8 +64,11 @@ class CategoryForm(FlaskForm):
 
 
 class TransactionForm(FlaskForm):
-    account = QuerySelectField(query_factory=account_choices, get_label='name')
-    category = QuerySelectField(query_factory=category_choices, get_label='name')
+    account = QuerySelectField(query_factory=not_inv_acc_choices, get_label='name')
+    cat_choices = SelectField('Category Group - Optional', choices=Config.CATEGORY_TYPES, default='All')
+    category = QuerySelectField(query_factory=category_choices, get_label='name', allow_blank=True)
+    cat_income = QuerySelectField('Category', query_factory=income_categories, get_label='name', default=None, allow_blank=True)
+    cat_expense = QuerySelectField('Category', query_factory=expense_categories, get_label='name', default=None, allow_blank=True)
     amount = FloatField('Amount')
     currency = SelectField('Currency', validators=[DataRequired()],
         choices=Config.CURRENCIES)

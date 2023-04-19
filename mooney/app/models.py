@@ -54,7 +54,6 @@ class Category(db.Model):
     icon          = db.Column(db.String(255), nullable=True, default='mooney/app/static/icons/icon.png')
     budget_archive = db.Column(db.String(), nullable=True)
 
-
     def __repr__(self):
         return '<Category {}>'.format(self.name)
 
@@ -83,8 +82,20 @@ def inv_acc_choices(type='Investment', user=current_user):
     ac = Account.query.filter_by(user_id=current_user.id).filter_by(type=type)
     return ac
 
-def category_choices(user=current_user):
+def not_inv_acc_choices(type='Investment', user=current_user):
+    ac = Account.query.filter_by(user_id=current_user.id).filter(Account.type!=type)
+    return ac
+
+def category_choices(type=False, user=current_user):
     cc = Category.query.filter_by(user_id=current_user.id)
+    return cc
+
+def income_categories(type='Income', user=current_user):
+    cc = Category.query.filter_by(user_id=current_user.id).filter_by(type=type)
+    return cc
+
+def expense_categories(type='Expense', user=current_user):
+    cc = Category.query.filter_by(user_id=current_user.id).filter_by(type=type)
     return cc
 
 class Transfer(db.Model):

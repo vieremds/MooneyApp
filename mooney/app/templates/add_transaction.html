@@ -3,11 +3,119 @@
 
 {% block app_content %}
     <h1>Add Transaction</h1>
+    <!--select class="custom-select col-md-2" id="CategoryType">
+        <option selected>Choose...</option>
+        <option value="Income">Income</option>
+        <option value="Expense">Expense</option>
+    </select>
+    <br>
+    <br-->
     <form action="" method="post">
-        <div class="row">
+        {{ form.hidden_tag() }}
+        <!--div class="row">
             <div class="col-md-4">
                 {{ wtf.quick_form(form) }}
             </div>
+        </div-->
+        <div class="row">
+            <div class="col-md-4">
+                {{ wtf.form_field(form.account) }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4" style="font-style: italic; font-weight: lighter;">
+                {{ wtf.form_field(form.cat_choices) }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4" id="Cat" style="display: block;">
+                {{ wtf.form_field(form.category) }}
+            </div>
+        </div>
+        <div class="row" id="Expense" style="display: none;">
+            <div class="col-md-4">
+                {{ wtf.form_field(form.cat_expense) }}
+            </div>
+        </div>
+        <div class="row" id="Income" style="display: none;">
+            <div class="col-md-4">
+                {{ wtf.form_field(form.cat_income) }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                {{ wtf.form_field(form.amount) }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                {{ wtf.form_field(form.currency) }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                {{ wtf.form_field(form.date) }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                {{ wtf.form_field(form.tag) }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                {{ wtf.form_field(form.description) }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                {{ wtf.form_field(form.submit) }}
+                {{ wtf.form_field(form.submit_plus) }}
+            </div>
         </div>
     </form>
+{% endblock %}
+{% block scripts %}
+<script>
+  $(document).ready(function() {
+    // define a function that sets the appropriate value based on cat_choices
+    function setCatFormValue() {
+      let cat_choices = document.getElementById("cat_choices");
+      //Check what is there and display what matters
+      if (cat_choices.value === 'Income') {
+        //Clean the pre-selection
+        document.getElementById("cat_expense").value = '';
+        document.getElementById("category").value = '';
+        //Display/Hide
+        document.getElementById("Cat").style.display = 'none';
+        document.getElementById("Expense").style.display = 'none';
+        document.getElementById("Income").style.display = 'block';
+        //Style
+        document.getElementById("amount").style.backgroundColor = '#EDFFFF'
+      } else if (cat_choices.value === 'Expense') {
+        //Clean the pre-selection
+        document.getElementById("cat_income").value = '';
+        document.getElementById("category").value = '';
+        //Display/Hide
+        document.getElementById("Cat").style.display = 'none';
+        document.getElementById("Income").style.display = 'none';
+        document.getElementById("Expense").style.display = 'block';
+        //Style
+        document.getElementById("amount").style.backgroundColor = '#FFE8E7'
+      } else {
+        //Clean the pre-selection
+        document.getElementById("cat_income").value = '';
+        document.getElementById("cat_expense").value = '';
+      }
+    }
+
+    // run the function once at page load
+    setCatFormValue();
+
+    // attach an event listener to #cat_choices
+    $('#cat_choices').on('change', function() {
+      setCatFormValue();
+    });
+  });
+  </script>
 {% endblock %}
