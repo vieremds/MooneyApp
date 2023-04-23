@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField, FloatField, SelectField, DateField, SelectMultipleField, DecimalField
+from wtforms import StringField, PasswordField, BooleanField, SubmitField, FloatField, SelectField, DateField, SelectMultipleField, DecimalField, IntegerField
 from wtforms_sqlalchemy.fields import QuerySelectField
 from wtforms.validators import ValidationError, DataRequired, Email, EqualTo, NumberRange, Optional
 from wtforms.widgets.core import Select
@@ -108,10 +108,16 @@ class DateAccountCategoryForm(FlaskForm):
     category = QuerySelectField(query_factory=category_choices, get_label='name', allow_blank=True, default='')
     submit = SubmitField('Go')
 
-
 class UpdateBalanceForm(FlaskForm):
     account = QuerySelectField(query_factory=inv_acc_choices, get_label='name')
     amount = DecimalField('Amount', validators=[DataRequired()], default=0.00)
     date = DateField('Date')
     description = StringField('Description')
     submit = SubmitField('Save')
+
+class AssetForm(FlaskForm):
+    symbol         = StringField('Symbol', validators=[DataRequired()])
+    name           = StringField('Name', validators=[DataRequired()])
+    purchase_date  = DateField('Purchase Date')
+    purchase_price = DecimalField('Purchase Price', validators=[NumberRange(min=0.01, message='Amount must be positive')], default=0.00)
+    quantity       = IntegerField('Quantity')

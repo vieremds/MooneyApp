@@ -1,18 +1,19 @@
 from flask import render_template, flash, redirect, url_for, request, session
 from app import app, db
-from app.forms import LoginForm, RegistrationForm, AddAccountForm, CategoryForm, TransactionForm, TransferForm, SelectDateForm, DateTypeForm, UpdateBalanceForm, DateAccountCategoryForm
+from app.forms import LoginForm, RegistrationForm, AddAccountForm, CategoryForm, TransactionForm, TransferForm, SelectDateForm, DateTypeForm, UpdateBalanceForm, DateAccountCategoryForm, AssetForm
 from flask_login import current_user, login_user, logout_user, login_required
-from app.models import User, Account, Category, Transaction, Transfer, account_choices, category_choices
+from app.models import User, Account, Category, Transaction, Transfer, Assets, account_choices, category_choices
 from werkzeug.urls import url_parse
 from sqlalchemy import func, exc
 from config import Config
 import pandas as pd 
 import json
 import collections
-from .func import get_balance_by_type, get_single_balance, get_category_balance, get_category_type_balance, get_month_dates, get_balance_at_eom
+from .func import get_balance_by_type, get_single_balance, get_category_balance, get_category_type_balance, get_month_dates, get_balance_at_eom, normal_amt
 from datetime import datetime, date, timedelta  
 import calendar
 from dateutil.relativedelta import relativedelta
+import yfinance
 
 @app.route('/')
 @app.route('/index', methods=['GET', 'POST'])
@@ -312,7 +313,7 @@ def balance_view():
 
     #Retrieve information that was passed through request, not form
     elif request.args.get('types'):
-        types = request.args.get('types')
+        types = [request.args.get('types')]
         #as we are here we overwrite dates
         start_date = datetime.strptime(request.args.get('start_date'), "%Y-%m-%d")
         end_date =  datetime.strptime(request.args.get('end_date'), "%Y-%m-%d")
@@ -487,8 +488,6 @@ def transactions_edit():
     #Else is not expected, putting in here case a different meaning of POST is received
     else:
         flash('POST action not known. No action has been taken')
-    
-    print(request.form['prev_start_date'])
 
     return redirect(url_for('transactions', start_date=request.form['prev_start_date'], end_date=request.form['prev_end_date']), code=307)
 
@@ -547,6 +546,82 @@ def charts():
                            giro_labels=giro_labels, values=values, income_keys=income_keys, income_values=income_values, expense_keys=expense_keys, 
                            expense_values=expense_values, range_=month_range, values_=values_, accounts_=accounts_)
 
+@app.route('/assets', methods=['GET', 'POST'])
+@login_required
+def assets():
+    #Load Form
+    form = AssetForm()
+
+    if request.method == 'POST':
+        #Check which action was requested
+        if request.form['action'] == 'new':
+            asset_ = yfinance.Ticker(form.symbol.data)
+            cost = normal_amt(form.quantity.data * form.purchase_price.data)
+            asset = Assets(name=form.name.data, symbol=form.symbol.data, quantity=form.quantity.data, purchase_date=form.purchase_date.data,
+                purchase_price=form.purchase_price.data, cost=cost, user_id=current_user.id, previous_close=asset_.info['previousClose'], type=asset_.info['quoteType'])
+            db.session.add(asset)
+            db.session.commit()
+
+            flash('An Asset was just added!')
+        
+        elif request.form['action'] == 'delete':
+            asset_ = Assets.query.filter_by(id=request.form['id']).first()
+            db.session.delete(asset_)
+            db.session.commit()
+            
+            flash('An Asset was just deleted!')
+
+        elif request.form['action'] == 'save':
+            asset_ = Assets.query.filter_by(id=request.form['id']).first()
+            try:
+                asset_.name = request.form['name']
+                asset_.symbol = request.form['symbol']
+                asset_.purchase_date = request.form['purchase_date']
+                asset_.purchase_price = request.form['purchase_price']
+                asset_.quantity = request.form['quantity']
+                db.session.commit()
+            except exc.SQLAlchemyError:
+                flash('At least one of the edit fields do not match its required datatype. Try again')
+                db.session.rollback()
+    
+    #Load all assets from DataBase
+    assets = Assets.query.filter_by(user_id=current_user.id).all()
+    extra = {}
+
+    #Retrieve each asset latest price
+    for asset in assets:
+        extra[asset]={}
+        asset_ = yfinance.Ticker(asset.symbol)
+        try:
+            prev_close = asset_['previousClose']
+            asset.previous_close = normal_amt(prev_close)
+            db.session.commit()
+        except:
+            pass
+            #case we can't retrieve it
+            #flash('Live connection seems unavailable, we retrieved latest on file.')
+        extra[asset]['value'] = normal_amt(asset.quantity * asset.previous_close)
+        extra[asset]['pNl'] = normal_amt(extra[asset]['value'] - asset.cost)
+    
+
+    return render_template('assets.html', title='Assets', form=form, assets=assets, extra=extra)
+
+@app.route('/assets/validate/<symbol>', methods=['POST'])
+@login_required
+def asset_val(symbol):
+    try:
+        asset_ = yfinance.Ticker(symbol)
+        asset_name = asset_.info['shortName']
+    except:
+        #case we can't retrieve it
+        asset_name = 'False'
+    try:
+        return asset_name
+    except UnboundLocalError:
+        return 'False'
+
+#EDIT ASSET DOESNT WORK
+#REQUIREMENTS.TXT
 #BALANCE NEEDS RE-WORK, IT IS FUCKED UP FOR GIRO AND LIABILITY, INVESTMENT IS FINE
 #LOCAL MYSQL DATABASE
 #INPUT MY PAST DATA*
