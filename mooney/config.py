@@ -12,3 +12,4 @@ class Config(object):
     CATEGORY_TYPES = ['All','Income','Expense']
     LOG_TO_STDOUT = os.environ.get('LOG_TO_STDOUT')
     MONTHS = ['January','February','March', 'April','May','June','July','August','September','October','November','December']
+    CACHE_TYPE = "SimpleCache"
