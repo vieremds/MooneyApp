@@ -110,3 +110,23 @@ class Transfer(db.Model):
 
     def __repr__(self):
         return self.amount
+
+class Assets(db.Model):
+    id             = db.Column(db.Integer, primary_key=True)
+    user_id        = db.Column(db.Integer, db.ForeignKey('user.id'))
+    account        = db.Column(db.String)
+    symbol         = db.Column(db.String(16), index=True)
+    name           = db.Column(db.String())
+    type           = db.Column(db.String())
+    previous_close = db.Column(db.Float(64))
+    historic_price = db.Column(db.String(), nullable=True)
+    quantity       = db.Column(db.Integer)
+    cost           = db.Column(db.Float(64))
+    purchase_date  = db.Column(db.Date)
+    purchase_price = db.Column(db.Float(64))
+    last365days    = db.Column(db.Float(16))
+    last30days     = db.Column(db.Float(16))
+    last7days      = db.Column(db.Float(16))
+
+    def __repr__(self):
+        return self.symbol

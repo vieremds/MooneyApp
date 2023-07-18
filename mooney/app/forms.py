@@ -121,3 +121,4 @@ class AssetForm(FlaskForm):
     purchase_date  = DateField('Purchase Date')
     purchase_price = DecimalField('Purchase Price', validators=[NumberRange(min=0.01, message='Amount must be positive')], default=0.00)
     quantity       = IntegerField('Quantity')
+    account = QuerySelectField(query_factory=inv_acc_choices, get_label='name')
