@@ -30,3 +30,4 @@ WTForms==3.0.1
 WTForms-Ext==0.5
 WTForms-SQLAlchemy==0.3
 Flask-Caching==1.10.0
+yfinance==0.2.24
