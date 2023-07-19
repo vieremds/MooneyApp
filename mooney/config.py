@@ -3,7 +3,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config(object):
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'you-will-never-guess'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', '')
+    SQLALCHEMY_DATABASE_URI = 'postgres://mooney_database_klpw_user:qlHhIIGk7W51eidxvzenVfOxRfJ7GrE6@dpg-cir3iilgkuvqads8mjs0-a/mooney_database_klpw'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DEBUG = True
     ACCOUNT_TYPES = ['Giro','Liability','Investment']
