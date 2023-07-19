@@ -1,5 +1,6 @@
 mooney/app/__pycache__/
 mooney/venv/
+mooney/migrations/
 mooney/__pycache__/config.cpython-311.pyc
 mooney/__pycache__/mooney.cpython-311.pyc
 mooney/app/__pycache__/__init__.cpython-311.pyc
