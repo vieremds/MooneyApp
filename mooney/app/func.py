@@ -6,7 +6,8 @@ from config import Config
 import json
 import collections
 from datetime import datetime, date, timedelta
-import calendar 
+import calendar
+import yfinance
 
 
 def get_balance_by_type(types=Config.ACCOUNT_TYPES):
@@ -157,4 +158,13 @@ def get_balance_at_eom(accounts, month_range):
 
 def normal_amt(amount):
     amt = round(float(amount or 0.00),2)
+    return amt
+
+def fx_base(amount, currency, base='EUR'):
+    if currency != base:
+        fx = yfinance.Ticker(currency + 'EUR=X')
+        fx = fx.info['previousClose']
+        amt = normal_amt(amount * fx)
+    else:
+        amt = normal_amt(amount)
     return amt

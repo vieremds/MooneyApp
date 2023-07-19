@@ -5,6 +5,7 @@ from flask_login import UserMixin
 from flask_login import current_user
 
 class User(UserMixin, db.Model):
+    __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), index=True, unique=True)
     email = db.Column(db.String(120), index=True, unique=True)
@@ -22,6 +23,7 @@ class User(UserMixin, db.Model):
     
 
 class Account(db.Model):
+    __tablename__ = 'account'
     id            = db.Column(db.Integer, primary_key=True)
     name  = db.Column(db.String(64), unique=False)
     type  = db.Column(db.String(32), unique=False)
@@ -42,6 +44,7 @@ def load_user(id):
     return User.query.get(int(id))
 
 class Category(db.Model):
+    __tablename__ = 'category'
     id            = db.Column(db.Integer, primary_key=True)
     name  = db.Column(db.String(64), unique=False)
     type  = db.Column(db.String(32), unique=False)
@@ -58,6 +61,7 @@ class Category(db.Model):
         return '<Category {}>'.format(self.name)
 
 class Transaction(db.Model):
+    __tablename__ = 'transaction'
     id            = db.Column(db.Integer, primary_key=True)
     account  = db.Column(db.Integer, db.ForeignKey('account.id'))
     category  = db.Column(db.Integer, db.ForeignKey('category.id'))
@@ -99,6 +103,7 @@ def expense_categories(type='Expense', user=current_user):
     return cc
 
 class Transfer(db.Model):
+    __tablename__ = 'transfer'
     id            = db.Column(db.Integer, primary_key=True)
     source_account  = db.Column(db.Integer, db.ForeignKey('account.id'))
     target_account  = db.Column(db.Integer, db.ForeignKey('account.id'))
@@ -110,3 +115,24 @@ class Transfer(db.Model):
 
     def __repr__(self):
         return self.amount
+
+class Assets(db.Model):
+    __tablename__ = 'assets'
+    id             = db.Column(db.Integer, primary_key=True)
+    user_id        = db.Column(db.Integer, db.ForeignKey('user.id'))
+    account        = db.Column(db.String)
+    symbol         = db.Column(db.String(16), index=True)
+    name           = db.Column(db.String())
+    type           = db.Column(db.String())
+    previous_close = db.Column(db.Float(64))
+    historic_price = db.Column(db.String(), nullable=True)
+    quantity       = db.Column(db.Integer)
+    cost           = db.Column(db.Float(64))
+    purchase_date  = db.Column(db.Date)
+    purchase_price = db.Column(db.Float(64))
+    last365days    = db.Column(db.Float(16))
+    last30days     = db.Column(db.Float(16))
+    last7days      = db.Column(db.Float(16))
+
+    def __repr__(self):
+        return self.symbol

@@ -1,5 +1,5 @@
 from flask import render_template, flash, redirect, url_for, request, session
-from app import app, db
+from app import app, db, cache
 from app.forms import LoginForm, RegistrationForm, AddAccountForm, CategoryForm, TransactionForm, TransferForm, SelectDateForm, DateTypeForm, UpdateBalanceForm, DateAccountCategoryForm, AssetForm
 from flask_login import current_user, login_user, logout_user, login_required
 from app.models import User, Account, Category, Transaction, Transfer, Assets, account_choices, category_choices
@@ -9,11 +9,12 @@ from config import Config
 import pandas as pd 
 import json
 import collections
-from .func import get_balance_by_type, get_single_balance, get_category_balance, get_category_type_balance, get_month_dates, get_balance_at_eom, normal_amt
+from .func import get_balance_by_type, get_single_balance, get_category_balance, get_category_type_balance, get_month_dates, get_balance_at_eom, normal_amt, fx_base
 from datetime import datetime, date, timedelta  
 import calendar
 from dateutil.relativedelta import relativedelta
 import yfinance
+import traceback
 
 @app.route('/')
 @app.route('/index', methods=['GET', 'POST'])
@@ -548,17 +549,26 @@ def charts():
 
 @app.route('/assets', methods=['GET', 'POST'])
 @login_required
+#@cache.cached(timeout=3000)
 def assets():
     #Load Form
     form = AssetForm()
+    db.session.flush()
+    refresh = request.args.get('refresh')
 
     if request.method == 'POST':
         #Check which action was requested
         if request.form['action'] == 'new':
             asset_ = yfinance.Ticker(form.symbol.data)
+            currency = asset_.info['currency']
+            histClose = asset_.history(period="12mo")
             cost = normal_amt(form.quantity.data * form.purchase_price.data)
-            asset = Assets(name=form.name.data, symbol=form.symbol.data, quantity=form.quantity.data, purchase_date=form.purchase_date.data,
-                purchase_price=form.purchase_price.data, cost=cost, user_id=current_user.id, previous_close=asset_.info['previousClose'], type=asset_.info['quoteType'])
+            asset = Assets(name=form.name.data, symbol=form.symbol.data, account=form.account.data, quantity=form.quantity.data,
+                    purchase_date=form.purchase_date.data, purchase_price=form.purchase_price.data, cost=cost, user_id=current_user.id,
+                    previous_close=asset_.info['previousClose'], type=asset_.info['quoteType'],
+                    last365days = fx_base((form.quantity.data * histClose['Close'].iloc[0]), currency), 
+                    last30days= fx_base((form.quantity.data * histClose['Close'].iloc[-30]), currency), 
+                    last7days= fx_base((form.quantity.data * histClose['Close'].iloc[-7]), currency))
             db.session.add(asset)
             db.session.commit()
 
@@ -576,35 +586,67 @@ def assets():
             try:
                 asset_.name = request.form['name']
                 asset_.symbol = request.form['symbol']
-                asset_.purchase_date = request.form['purchase_date']
+                asset_.account = request.form['account']
+                asset_.purchase_date = datetime.strptime(request.form['purchase_date'], '%Y-%m-%d')
                 asset_.purchase_price = request.form['purchase_price']
                 asset_.quantity = request.form['quantity']
+                asset_.cost = normal_amt(float(asset_.purchase_price) * int(asset_.quantity))
                 db.session.commit()
             except exc.SQLAlchemyError:
+                traceback.print_exc()
                 flash('At least one of the edit fields do not match its required datatype. Try again')
                 db.session.rollback()
     
     #Load all assets from DataBase
     assets = Assets.query.filter_by(user_id=current_user.id).all()
     extra = {}
+    card = {'Position':0, 'Last30days':0.00, 'Last7days':0.00, 'Last365days':0.00}
+
 
     #Retrieve each asset latest price
     for asset in assets:
         extra[asset]={}
-        asset_ = yfinance.Ticker(asset.symbol)
-        try:
-            prev_close = asset_['previousClose']
-            asset.previous_close = normal_amt(prev_close)
-            db.session.commit()
-        except:
-            pass
-            #case we can't retrieve it
-            #flash('Live connection seems unavailable, we retrieved latest on file.')
+        if refresh:
+            asset_ = yfinance.Ticker(asset.symbol)
+            currency = asset_.info['currency']
+            histClose = asset_.history(period="12mo")
+            try:
+                prev_close = asset_.info['previousClose']
+                asset.previous_close = fx_base(prev_close, currency)
+                #Get price for the historic period
+                asset.last365days = fx_base((asset.quantity * histClose['Close'].iloc[0]), currency)
+                card['Last365days'] += asset.last365days
+                asset.last30days = fx_base((asset.quantity * histClose['Close'].iloc[-30]), currency)
+                card['Last30days'] += asset.last30days
+                asset.last7days = fx_base((asset.quantity * histClose['Close'].iloc[-7]), currency)
+                card['Last7days'] += asset.last30days
+                db.session.commit()
+            except:
+                #case we can't retrieve it
+                flash('Live connection seems unavailable, we could not retrieve latest from web.')
+        else:
+            card['Last365days'] += asset.last365days
+            card['Last30days'] += asset.last30days
+            card['Last7days'] += asset.last7days
         extra[asset]['value'] = normal_amt(asset.quantity * asset.previous_close)
         extra[asset]['pNl'] = normal_amt(extra[asset]['value'] - asset.cost)
-    
+        card['Position'] += normal_amt(asset.quantity * asset.previous_close)
 
-    return render_template('assets.html', title='Assets', form=form, assets=assets, extra=extra)
+        #Get account name for display purposes
+        try: 
+            asset.account = db.session.query(Account.name).filter_by(id=asset.account).first()[0]
+        except TypeError:
+            pass
+        #Format Types to 6char
+        asset.type = asset.type[:6]
+        
+    
+    #For the %, Get price for the historic period, divide that by current - 1 and multiply by 100
+    card['Last365days'] = round((((card['Last365days']/card['Position'])-1)*100),2)
+    card['Last30days'] = round((((card['Last30days']/card['Position'])-1)*100),2)
+    card['Last7days'] = round((((card['Last7days']/card['Position'])-1)*100),2)
+
+    return render_template('assets.html', title='Assets', form=form, assets=assets, extra=extra, card=card)
 
 @app.route('/assets/validate/<symbol>', methods=['POST'])
 @login_required
@@ -620,7 +662,8 @@ def asset_val(symbol):
     except UnboundLocalError:
         return 'False'
 
-#EDIT ASSET DOESNT WORK
+
+
 #REQUIREMENTS.TXT
 #BALANCE NEEDS RE-WORK, IT IS FUCKED UP FOR GIRO AND LIABILITY, INVESTMENT IS FINE
 #LOCAL MYSQL DATABASE

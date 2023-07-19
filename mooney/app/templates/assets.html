@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+{% import 'bootstrap/wtf.html' as wtf %}
+
+{% block app_content %}
+<style>
+  .modal-header:before {
+    content: none;
+  }
+  .center {
+  margin: 0;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  -ms-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+  }
+  table.dataTable tbody tr.selected {
+  background-color: #d6c6f6;
+  }
+</style>
+<!--script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script-->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"> 
+<div class="row row-cols-3">
+  <div class="col-sm-8">
+    <h1>{{ title }}</h1>
+  </div>
+  <div class="col-sm-2">
+    <div class="center">
+      <a data-toggle="modal" data-target="#myModal_NewAsset" href="#myModal_NewAsset" class="btn btn-primary">Add Asset</a>
+    </div>
+  </div>
+  <div class="col-sm-2">
+    <div class="center">
+      <a href="{{ url_for('assets', refresh=True)}}" class="btn btn-secondary">Load Latest</a>
+    </div>
+  </div>
+</div>
+<div class="card-group">
+    <div class="card">
+        <h5 class="card-header">Position</h5>
+        <div class="card-body">
+            <h3 class="text-center">{{ "€ %.2f" % card.Position }}</h3>
+        </div>
+        <div class="card-footer">
+            <small class="text-muted">Current, from previous close</small>
+        </div>
+    </div>
+    <div class="card">
+        <h5 class="card-header">Last 365 days</h5>
+            {% if card.Last30days < 0.00 %}
+                <div class="card-body" style="background-color:#FFE8E7;">
+            {% else %}
+                <div class="card-body" style="background-color:#EDFFFF;">
+            {% endif %}
+                    <h3 class="text-center">{{ card.Last365days }}%</h3>
+                </div>
+        <div class="card-footer">
+            <small class="text-muted">Previous close - 365 days ago</small>
+        </div>
+    </div>
+    <div class="card">
+        <h5 class="card-header">Last 30 days</h5>
+            {% if card.Last30days < 0.00 %}
+                <div class="card-body" style="background-color:#FFE8E7;">
+            {% else %}
+                <div class="card-body" style="background-color:#EDFFFF;">
+            {% endif %}
+                    <h3 class="text-center">{{ card.Last30days }}%</h3>
+                </div>
+        <div class="card-footer">
+            <small class="text-muted">Previous close - 30 days ago</small>
+        </div>
+    </div>
+    <div class="card">
+        <h5 class="card-header">Last 7 days</h5>
+            {% if card.Last7days < 0.00 %}
+                <div class="card-body" style="background-color:#FFE8E7;">
+            {% else %}
+                <div class="card-body" style="background-color:#EDFFFF;">
+            {% endif %}
+                    <h3 class="text-center">{{ card.Last7days }}%</h3>
+                </div>
+        <div class="card-footer">
+            <small class="text-muted">Previous close - 7 days ago</small>
+        </div>
+    </div>
+    <div class="card" id="popUpSum" style="display: none;">
+        <h5 class="card-header">Pop-Up Sum</h5>
+                <div class="card-body" style="background-color:#d6c6f6;">
+                    <h3 class="text-center" id="innerSum">0.00</h3>
+                </div>
+        <div class="card-footer">
+            <small class="text-muted">Based on your selection value</small>
+        </div>
+    </div>
+</div>
+<br>
+<br>
+<div>
+    <table id="table" class="table table-striped">
+        <!--thead>
+        <tr>
+            <th>Id</th>
+            <th>Symbol</th>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Puchase Date</th>
+            <th>Quantity</th>
+            <th>Cost</th>
+            <th>Value</th>
+            <th>Purchase Price</th>
+            <th>Previous Close</th>
+            <th>P/L Since Buy</th>
+        </tr>
+        </thead-->
+        <tbody>
+        {% for asset in assets %}
+        <tr>
+            <td><a data-toggle="modal" data-target="#myModal{{asset.id}}" href="#myModal{{asset.id}}">{{ asset.id }}</a></td>
+            <td>{{ asset.symbol }}</td>
+            <td>{{ asset.name }}</td>
+            <td>{{ asset.type }}</td>
+            <td>{{ asset.account }}</td>
+            <td>{{ asset.purchase_date }}</td>
+            <td>{{ asset.quantity }}</td>
+            <td>{{ "€ %.2f" % asset.cost }}</td>
+            <td>{{ "€ %.2f" % extra[asset].value }}</td>
+            <td>{{ "€ %.2f" % asset.purchase_price }}</td>
+            <td>{{ "€ %.2f" % asset.previous_close }}</td>
+            <td>{{ "€ %.2f" % extra[asset].pNl }}</td>
+        </tr>
+        <!-- Modal For EDIT / DELETE -->
+        <div id="myModal{{asset.id}}" class="modal fade" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" id="{{asset.id}}" role="document">
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header" style="justify-content:space-between;">
+                <h4 class="modal-text">Edit Asset</h4>
+                </div>
+                <div class="modal-body">
+                    <form action="" method="post">
+                        <input type="integer" id="id" name="id" value="{{ asset.id }}" hidden="True"/>
+                        <div class="form-group">
+                            {{ wtf.form_field(form.symbol, value=asset.symbol) }}
+                        </div>
+                        <div class="form-group">
+                            <!-- Load the name based on what we have from above-->
+                            {{ wtf.form_field(form.name, value=asset.name) }}
+                        </div>
+                        <div class="form-group">
+                            <!-- Load the name based on what we have from above-->
+                            {{ wtf.form_field(form.account, value=asset.account) }}
+                        </div>
+                        <div class="form-group">
+                            {{ wtf.form_field(form.quantity, value=asset.quantity) }}
+                        </div>
+                        <div class="form-group">
+                            {{ wtf.form_field(form.purchase_price, value=asset.purchase_price) }}
+                        </div>
+                        <div class="form-group">
+                            {{ wtf.form_field(form.purchase_date, value=asset.purchase_date) }}
+                        </div>
+                      <div class="modal-footer">
+                        <button type="submit" name="action" value="save" class="btn btn-primary">Save changes</button>
+                        <button type="submit" name="action" value="delete" class="btn btn-danger">Delete</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                      </div>
+                    </form>
+                  </div>
+            </div>
+            </div>
+        </div>
+        {% endfor %}
+        </tbody>
+    </table>
+    <!-- Modal For NEW -->
+    <div id="myModal_NewAsset" class="modal fade" role="dialog" aria-hidden="true">
+        <!-- Modal content-->
+        <div class="col-sm-6 center">
+        <div class="modal-content">
+            <div class="modal-header" style="justify-content:space-between;">
+            <h4 class="modal-text">New Asset</h4>
+            </div>
+            <!-- Add Instruction about getting Symbol -->
+            <div class="modal-body">
+                <form action="" method="post">
+                    <div class="form-group">
+                        <!-- Validate loading the asset, checking content-->
+                        {{ form.symbol.label }}
+                        {{ form.symbol(id="symbol_", style="width: 100%", onchange="validateSymbol()") }}
+                    </div>
+                    <div class="form-group">
+                        <!-- Load the name based on what we have from above-->
+                        {{ wtf.form_field(form.name, id="name_") }}
+                    </div>
+                    <div class="form-group">
+                        {{ wtf.form_field(form.account) }}
+                    </div>
+                    <div class="form-group">
+                        {{ wtf.form_field(form.quantity) }}
+                    </div>
+                    <div class="form-group">
+                        {{ wtf.form_field(form.purchase_price) }}
+                    </div>
+                    <div class="form-group">
+                        {{ wtf.form_field(form.purchase_date) }}
+                    </div>
+                    <div class="modal-footer">
+                    <button type="submit" name="action" value="new" class="btn btn-primary">Add Asset</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %} 
+<script> const $ = jQuery; </script>
+<script>
+$(document).ready(function () {
+    var table = $('#table').DataTable({
+      responsive: true,
+      searching: true,
+      ordering: true,
+      select: {
+            info: true,
+            style: 'multi',
+            selector: 'td'
+        },
+      order: [[7, 'desc']],
+      pageLength: [20],
+      rowReorder: {
+        selector: 'td:nth-child(2)'
+    },
+      columns: [
+        { name: 'Id', title: 'Id'},
+        { name: 'Symbol', title: 'Symbol'},
+        { name: 'Name', title: 'Name'},
+        { name: 'Type', title: 'Type'},
+        { name: 'Account', title: 'Account'},
+        { name: 'Purchase Date', title: 'Purchase Date'},
+        { name: 'Quantity', title: 'Quantity'},
+        { name: 'Cost', title: 'Cost'},
+        { name: 'Value', title: 'Value'},
+        { name: 'Purchase Price', title: 'Purchase Price'},
+        { name: 'Previous Close', title: 'Previous Closed'},
+        { name: 'P/L Since Buy', title: 'P/L Since Buy'},
+      ]
+    } 
+  );
+  const valueColumn = table.column('Value:name').index();
+  const element = document.getElementById("innerSum");
+
+  $('#table tbody').on( 'click', 'tr', function () {
+        $(this).toggleClass('selected');
+        var rows = table.rows('.selected').data();
+        var sum = 0.00;
+        for (var i = 0; i < rows.length; i++){
+            var a = rows[i][valueColumn]
+            let b = parseFloat(a.slice(2))
+            sum += b  
+        }
+        element.innerHTML = "€ " + sum.toFixed(2);
+        if (sum != 0) {
+            document.getElementById("popUpSum").style.display = 'block';
+        } else {
+            document.getElementById("popUpSum").style.display = 'none';
+        }
+    } );
+  });
+</script>
+<script>
+    // define a function that sets the appropriate value based on cat_choices
+    function validateSymbol() {
+    let symbol = document.getElementById("symbol_").value;
+    console.log(symbol)
+    let url_ = "/assets/validate/"+symbol
+    console.log(url_)
+    let data = '';
+    //Javascript to call route, there we retrieve the asset
+    $.ajax({
+            type : "POST",
+            url : url_,
+            //data: String,
+            //contentType: 'application/json;charset=UTF-8',
+            success: function (data) {
+                console.log(data);
+                //Prepare for go well or wrong
+                if (data != 'False') {
+                    //Return outcome of symbol, if sucess print the name.value
+                    document.getElementById("name_").value = data;
+                    document.getElementById("name_").style.backgroundColor = '#EDFFFF';
+                    document.getElementById("symbol_").style.backgroundColor = '#EDFFFF';
+                } else {
+                    alert("Symbol not found try again");
+                    document.getElementById("name_").value = 'Not Found'
+                    document.getElementById("name_").style.backgroundColor = '#FFE8E7';
+                    document.getElementById("symbol_").style.backgroundColor = '#FFE8E7';
+                }
+                },
+            failed: function() {
+                alert("Symbol not found try again");
+                    document.getElementById("name").value = 'Not Found'
+                    document.getElementById("name").style.backgroundColor = '#FFE8E7';
+                    document.getElementById("symbol_").style.backgroundColor = '#FFE8E7';
+            }
+
+            });
+    }
+    </script>
+{% endblock %}
