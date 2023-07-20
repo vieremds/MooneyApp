@@ -4,7 +4,8 @@ from app.forms import LoginForm, RegistrationForm, AddAccountForm, CategoryForm,
 from flask_login import current_user, login_user, logout_user, login_required
 from app.models import User, Account, Category, Transaction, Transfer, Assets, account_choices, category_choices
 from werkzeug.urls import url_parse
-from sqlalchemy import func, exc
+import sqlalchemy
+from sqlalchemy import func, exc, or_
 from config import Config
 import pandas as pd 
 import json
@@ -244,10 +245,23 @@ def account_detail(account):
 
     account_ = Account.query.filter_by(name=account).filter_by(user_id=current_user.id).first()
  
+    #Get Transfer
+    account_trf_minus = db.session.query((Transfer.amount * -1).label('amount'), Transfer.date.label('date'), sqlalchemy.sql.expression.bindparam("name", "Outbound_Transfer"), Account.name.label('tag')).join(
+    Account, Account.id == Transfer.target_account).filter(Transfer.source_account.in_([account_.id])).all()
+    account_trf_plus = db.session.query(Transfer.amount.label('amount'), Transfer.date.label('date'), sqlalchemy.sql.expression.bindparam("name", "Inbound_Transfer"), Account.name.label('tag')).join(
+    Account, Account.id == Transfer.source_account).filter(Transfer.target_account.in_([account_.id])).order_by(Transfer.date.desc()).all()
+
+    #Get StartBalance
+    account_bal = db.session.query(Account.start_balance.label('amount'), Account.balance_date.label('date'), sqlalchemy.sql.expression.bindparam("name", "Start_Balance")).filter(Account.id.in_([account_.id])).all()
+
+    #Get transactions
     account_trx = db.session.query(Transaction.amount.label('amount'), Transaction.date.label('date'), Category.name.label('name'), Transaction.tag.label('tag')).join(
         Category, Category.id == Transaction.category).filter(Transaction.account.in_([account_.id])).filter(
         Transaction.date.between(form.start_date.data, form.end_date.data)).order_by(Transaction.date.desc()).all()
     
+    #Unify
+    account_details = account_bal + account_trx + account_trf_minus + account_trf_plus
+
     balance = get_single_balance(account_)
 
     bal_recon = float(form.amount.data or 0.0)
@@ -257,7 +271,7 @@ def account_detail(account):
     except ZeroDivisionError:
         diff_p = 0
     
-    return render_template('account_detail.html', title=account, account_type=account_.type, form=form, account_trx=account_trx, 
+    return render_template('account_detail.html', title=account, account_type=account_.type, form=form, account_trx=account_details, 
                            balance=balance, bal_recon=bal_recon, diff=diff, diff_p=diff_p)
 
 @app.route('/update_balance', methods=['GET', 'POST'])
@@ -360,20 +374,16 @@ def balance_view():
                             acc_trimmed[acc.name][m] = acc_trimmed[acc.name][month_range[idx-1]]
         else:
             transaction_balance = db.session.query(func.sum(Transaction.amount), 
-                func.strftime("%Y-%m", Transaction.date).label('month')).filter(Transaction.account.in_([acc.id])).group_by(func.strftime("%Y-%m",
-                Transaction.date).label('month')).all()
+                func.to_char(Transaction.date, 'YYYY-MM').label('month')).filter(Transaction.account.in_([acc.id])).group_by(func.to_char(Transaction.date, 'YYYY-MM').label('month')).all()
 
             trf_negative = db.session.query(func.sum(Transfer.amount),
-                func.strftime("%Y-%m", Transfer.date).label('month')).filter(Transfer.source_account.in_([acc.id])).group_by(func.strftime("%Y-%m",
-                Transfer.date).label('month')).all()
+                func.to_char(Transfer.date, 'YYYY-MM').label('month')).filter(Transfer.source_account.in_([acc.id])).group_by(func.to_char(Transfer.date, 'YYYY-MM').label('month')).all()
             
             trf_positive = db.session.query(func.sum(Transfer.amount),
-                func.strftime("%Y-%m", Transfer.date).label('month')).filter(Transfer.target_account.in_([acc.id])).group_by(func.strftime("%Y-%m",
-                Transfer.date).label('month')).all()
+                func.to_char(Transfer.date, 'YYYY-MM').label('month')).filter(Transfer.target_account.in_([acc.id])).group_by(func.to_char(Transfer.date, 'YYYY-MM').label('month')).all()
             
             start_balance = db.session.query(func.sum(Account.start_balance),
-                func.strftime("%Y-%m", Account.created_at).label('month')).filter(Account.id.in_([acc.id])).group_by(func.strftime("%Y-%m",
-                Account.created_at).label('month')).all()
+                func.to_char(Account.created_at, 'YYYY-MM').label('month')).filter(Account.id.in_([acc.id])).group_by(func.to_char(Account.created_at, 'YYYY-MM').label('month')).all()
 
             for idx, m in enumerate(month_range): 
                 #(2023-04, 1000)
@@ -643,9 +653,13 @@ def assets():
         
     
     #For the %, Get price for the historic period, divide that by current - 1 and multiply by 100
-    card['Last365days'] = round((((card['Last365days']/card['Position'])-1)*100),2)
-    card['Last30days'] = round((((card['Last30days']/card['Position'])-1)*100),2)
-    card['Last7days'] = round((((card['Last7days']/card['Position'])-1)*100),2)
+    if card['Position'] == 0.00:
+        #can not divide by 0, so just report 0 throughout
+        card['Last365days'], card['Last30days'], card['Last7days'] = 0, 0, 0
+    else:
+        card['Last365days'] = round((((card['Last365days']/card['Position'])-1)*100),2)
+        card['Last30days'] = round((((card['Last30days']/card['Position'])-1)*100),2)
+        card['Last7days'] = round((((card['Last7days']/card['Position'])-1)*100),2)
 
     return render_template('assets.html', title='Assets', form=form, assets=assets, extra=extra, card=card)
 
@@ -664,10 +678,6 @@ def asset_val(symbol):
         return 'False'
 
 
-
-#REQUIREMENTS.TXT
-#BALANCE NEEDS RE-WORK, IT IS FUCKED UP FOR GIRO AND LIABILITY, INVESTMENT IS FINE
-#LOCAL MYSQL DATABASE
 #INPUT MY PAST DATA*
 #CURRENCY LOGIC, CONVERSION TO DEFAULT BASED ON MARKET CURERNT DATA
 #ASSET LOGIC, INSIDE INVESTMENT ACCOUNT, CREATE ASSET LOGIC TO STORE AND RETRIEVE MARKET VALUE - CACHING LATEST AVAILABLE
@@ -676,5 +686,4 @@ def asset_val(symbol):
 #IMPLEMENT FORGOT PASSWORD AND EMAIL VALIDATION AS PER MEGATUTORIAL
 #IMPLEMENT LOGGING
 #IMPLEMENT BLUEPRINT AS PER MEGATUTORIAL
-#IMPLEMENT MYSQL WAY OF WORKING
 #DEPLOY
