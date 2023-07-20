@@ -34,12 +34,13 @@ def index():
     if form.type.data: 
         account = [id[0] for id in db.session.query(Account.id).filter(Account.type.in_(form.type.data)).filter_by(user_id=current_user.id).all()]
 
+    
     #CATEGORY/TRANSACTION STUFF
     account_trx = db.session.query(func.sum(Transaction.amount).label('sum'), 
-    func.strftime("%Y-%m", Transaction.date).label('month'), Category.name, Category.budget).join(
+    func.to_char(Transaction.date, 'YYYY-MM').label('month'), Category.name, Category.budget).join(
     Category, Category.id == Transaction.category).filter(Transaction.account.in_(account)).filter(
     Transaction.date.between(form.start_date.data, form.end_date.data)).group_by(
-    Transaction.category, func.strftime("%Y-%m", Transaction.date)).order_by(Transaction.date.asc()).all()
+    Category.name, func.to_char(Transaction.date, 'YYYY-MM'), Category.budget).order_by(func.to_char(Transaction.date, 'YYYY-MM').asc()).all()
     
     for trx in account_trx:
         if trx.month not in range_desc:
