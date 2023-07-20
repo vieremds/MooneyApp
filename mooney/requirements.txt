@@ -31,4 +31,4 @@ WTForms-Ext==0.5
 WTForms-SQLAlchemy==0.3
 Flask-Caching==1.10.0
 yfinance==0.2.24
-psycopg2==2.8.4
+psycopg2-binary==2.9.6
