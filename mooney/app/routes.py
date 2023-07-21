@@ -564,7 +564,9 @@ def charts():
 def assets():
     #Load Form
     form = AssetForm()
-    db.session.flush()
+    #db.session.flush()
+    #db.session.rollback()
+
     refresh = request.args.get('refresh')
 
     if request.method == 'POST':
@@ -631,7 +633,10 @@ def assets():
                 card['Last30days'] += asset.last30days
                 asset.last7days = fx_base((asset.quantity * histClose['Close'].iloc[-7]), currency)
                 card['Last7days'] += asset.last30days
-                db.session.commit()
+                try:
+                    db.session.commit()
+                except:
+                    db.session.rollback()
             except:
                 #case we can't retrieve it
                 flash('Live connection seems unavailable, we could not retrieve latest from web.')
@@ -646,7 +651,7 @@ def assets():
         #Get account name for display purposes
         try: 
             asset.account = db.session.query(Account.name).filter_by(id=asset.account).first()[0]
-        except TypeError:
+        except (TypeError, exc.SQLAlchemyError) as e:
             pass
         #Format Types to 6char
         asset.type = asset.type[:6]
