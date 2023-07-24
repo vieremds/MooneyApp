@@ -110,7 +110,7 @@ class DateAccountCategoryForm(FlaskForm):
 
 class UpdateBalanceForm(FlaskForm):
     account = QuerySelectField(query_factory=inv_acc_choices, get_label='name')
-    amount = DecimalField('Amount', validators=[DataRequired()], default=0.00)
+    amount = FloatField('Amount', validators=[DataRequired()], default=0.00)
     date = DateField('Date')
     description = StringField('Description')
     submit = SubmitField('Save')

@@ -131,33 +131,53 @@ def get_month_dates(st_date='', ed_date='', get_previous=False):
 
 def get_balance_at_eom(accounts, month_range):
     #only covering Investment accounts for now
-    
+
     acc_trimmed = {}
+    acc_range = []
 
     for acc in accounts:
         acc_trimmed[acc.name] = {}
         
-        for idx, m in enumerate(month_range): 
-            acc_trimmed[acc.name][m] = normal_amt(acc.start_balance)
-            
-            try:
-                acc_= json.loads(acc.balance_archive)
-                acc_= collections.OrderedDict(sorted(acc_.items()))
-            except:
-                acc_= False
+        if acc.name not in acc_range:
+            acc_range.append(acc.name)
 
-            if acc_:
-                #{2023-03-23: [1000, "balbalba"], 2023-04-23: [1000, "balbalba"]}
-                if m in acc_:
-                    acc_trimmed[acc.name][m] = normal_amt(acc_[m][0])
-                else:
-                    if idx-1 >= 0:
-                        acc_trimmed[acc.name][m] = normal_amt(acc_trimmed[acc.name][month_range[idx-1]])
-    
-    return acc_trimmed
+        if acc.type == 'Investment':            
+            for idx, m in enumerate(month_range): 
+                acc_trimmed[acc.name][m] = normal_amt(acc.start_balance)
+                
+                try:
+                    acc_= json.loads(acc.balance_archive)
+                    acc_= collections.OrderedDict(sorted(acc_.items()))
+                except:
+                    acc_= False
+
+                if acc_:
+                    #{2023-03-23: [1000, "balbalba"], 2023-04-23: [1000, "balbalba"]}
+                    if m in acc_:
+                        acc_trimmed[acc.name][m] = normal_amt(acc_[m][0])
+                    else:
+                        if idx-1 >= 0:
+                            acc_trimmed[acc.name][m] = normal_amt(acc_trimmed[acc.name][month_range[idx-1]])
+        else:
+            for idx, m in enumerate(month_range):
+                a, endDate = get_month_dates(st_date =datetime.strptime(m,'%Y-%m'), ed_date = datetime.strptime(m,'%Y-%m'))
+                transaction_balance = db.session.query(func.sum(Transaction.amount)).filter(Transaction.account.in_([acc.id])).filter(Transaction.date<=endDate).first()
+                trf_negative = db.session.query(func.sum(Transfer.amount)).filter(Transfer.source_account.in_([acc.id])).filter(Transfer.date<=endDate).first()
+                trf_positive = db.session.query(func.sum(Transfer.amount)).filter(Transfer.target_account.in_([acc.id])).filter(Transfer.date<=endDate).first()
+                start_balance = db.session.query(Account.start_balance).filter(Account.id.in_([acc.id])).filter(Account.balance_date<=endDate).first()
+                
+                transfer_balance = normal_amt(trf_positive[0]) - normal_amt(trf_negative[0])
+                balance = normal_amt(start_balance[0]) + normal_amt(transaction_balance[0]) + transfer_balance
+
+                acc_trimmed[acc.name][m] = normal_amt(balance)
+
+    return acc_trimmed, acc_range
 
 def normal_amt(amount):
-    amt = round(float(amount or 0.00),2)
+    try:
+        amt = round(float(amount or 0.00),2)
+    except: 
+        amt = 0.00
     return amt
 
 def fx_base(amount, currency, base='EUR'):
