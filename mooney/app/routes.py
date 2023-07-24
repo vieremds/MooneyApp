@@ -288,7 +288,7 @@ def update_balance():
         new[d] = []
         new[d] = [form.amount.data,
                                 form.description.data]
-
+        
         if account_.balance_archive:
             for k, v in json.loads(account_.balance_archive).items():
                 new[k] = v
@@ -308,8 +308,6 @@ def update_balance():
 @login_required
 def balance_view():
     form = DateTypeForm()
-    month_range = []
-    acc_range = []
     
     #There are 3 load paths
     #1) Default -> All accounts and Default form dates
@@ -336,6 +334,7 @@ def balance_view():
         balance_by_type = get_balance_by_type(types)
         accounts = db.session.query(Account.id, Account.name, Account.type,Account.start_balance, Account.balance_archive,
                                     Account.created_at).filter(Account.type.in_(types)).filter_by(user_id=current_user.id).all() 
+    
     #Means no form, and no request -> default only
     else: 
         # Load default stuff with all accounts
@@ -347,73 +346,8 @@ def balance_view():
     month_range = pd.date_range(start_date,end_date, 
             freq='MS').strftime("%Y-%m").tolist()
     
-    acc_trimmed = {}
+    acc_trimmed, acc_range = get_balance_at_eom(accounts, month_range)
 
-    for acc in accounts:
-        acc_trimmed[acc.name] = {}
-
-        if acc.name not in acc_range:
-            acc_range.append(acc.name)
-
-        if acc.type == 'Investment':
-            for idx, m in enumerate(month_range): 
-                acc_trimmed[acc.name][m] = acc.start_balance
-                
-                try:
-                    acc_= json.loads(acc.balance_archive)
-                    acc_= collections.OrderedDict(sorted(acc_.items()))
-                except:
-                    acc_= False
-
-                if acc_:
-                    #{'Comdirect': {'2023-01': 40296.0, '2023-02': 39374.0, '2023-03': 38765.0}}
-                    if m in acc_:
-                        acc_trimmed[acc.name][m] = acc_[m][0]
-                    else:
-                        if idx-1 >= 0:
-                            acc_trimmed[acc.name][m] = acc_trimmed[acc.name][month_range[idx-1]]
-        else:
-            transaction_balance = db.session.query(func.sum(Transaction.amount), 
-                func.to_char(Transaction.date, 'YYYY-MM').label('month')).filter(Transaction.account.in_([acc.id])).group_by(func.to_char(Transaction.date, 'YYYY-MM').label('month')).all()
-
-            trf_negative = db.session.query(func.sum(Transfer.amount),
-                func.to_char(Transfer.date, 'YYYY-MM').label('month')).filter(Transfer.source_account.in_([acc.id])).group_by(func.to_char(Transfer.date, 'YYYY-MM').label('month')).all()
-            
-            trf_positive = db.session.query(func.sum(Transfer.amount),
-                func.to_char(Transfer.date, 'YYYY-MM').label('month')).filter(Transfer.target_account.in_([acc.id])).group_by(func.to_char(Transfer.date, 'YYYY-MM').label('month')).all()
-            
-            start_balance = db.session.query(func.sum(Account.start_balance),
-                func.to_char(Account.created_at, 'YYYY-MM').label('month')).filter(Account.id.in_([acc.id])).group_by(func.to_char(Account.created_at, 'YYYY-MM').label('month')).all()
-
-            for idx, m in enumerate(month_range): 
-                #(2023-04, 1000)
-                tr_ = 0.0
-                trf_n = 0.0
-                trf_p = 0.0
-                sb_ = 0.0
-
-                for tr in transaction_balance:
-                    if m in tr:
-                        tr_ = round(tr[0], 2)
-
-                for tn in trf_negative:
-                    if m in tn:
-                        trf_n = round(tn[0], 2)
-
-                for tp in trf_positive:
-                    if m in tp:
-                        trf_p = round(tp[0], 2)
-
-                for sb in start_balance:
-                    if m in sb:
-                        sb_ = round(sb[0], 2)
-
-                transfer_balance = float(trf_p) - float(trf_n)
-                balance = float(sb_) + float(tr_) + transfer_balance
-                if idx-1 >= 0:
-                    acc_trimmed[acc.name][m] = balance + acc_trimmed[acc.name][month_range[idx-1]]
-                else: 
-                    acc_trimmed[acc.name][m] = balance
                 #Structure {N26: [03-2022:1000, 04-2023:2000, 05-2023:2500]}
     return render_template('balance_view.html', title='Balance View', form=form, balance_by_type=balance_by_type, month_range=month_range, acc_range=acc_range, acc_trimmed=acc_trimmed)
 
@@ -649,10 +583,11 @@ def assets():
         card['Position'] += normal_amt(asset.quantity * asset.previous_close)
 
         #Get account name for display purposes
-        try: 
-            asset.account = db.session.query(Account.name).filter_by(id=asset.account).first()[0]
-        except (TypeError, exc.SQLAlchemyError) as e:
-            pass
+        #try: 
+        #    asset.account = db.session.query(Account.name).filter_by(id=asset.account).first()[0]
+        #except (TypeError, exc.SQLAlchemyError) as e:
+        #    pass
+        
         #Format Types to 6char
         asset.type = asset.type[:6]
         
