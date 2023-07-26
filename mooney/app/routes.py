@@ -469,9 +469,6 @@ def charts():
     month_range = pd.date_range(start_date,end_date, 
             freq='MS').strftime("%Y-%m").tolist()
     
-    #month_range.append(start_date.strftime("%Y-%m"))
-    #month_range.append(end_date.strftime("%Y-%m"))
-    
     #get only uniques by the use of set
     min_range = 3
     while len(month_range) < min_range:
@@ -480,7 +477,7 @@ def charts():
         start_date = prev_month
    
     #{'Comdirect': {'2023-01': 40296.0, '2023-02': 39374.0, '2023-03': 38765.0}, 'Kraken': {'2023-01': 103.0, '2023-02': 103.0, '2023-03': 103.0}}
-    acc_trimmed = get_balance_at_eom(invest_acc,month_range)
+    acc_trimmed, a = get_balance_at_eom(invest_acc,month_range)
 
     #expected format is values:{"comdirect":[1,2,3], "trade_republic":[6,1,2]}
     for acc in invest_acc:
