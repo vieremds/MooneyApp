@@ -29,6 +29,7 @@ def index():
     cat_range = []
     bdgt_range = []
     trx_by_cat = {}
+    avg_by_cat = {}
 
     account = [id[0] for id in db.session.query(Account.id).filter_by(user_id=current_user.id).all()]
     
@@ -55,26 +56,44 @@ def index():
             trx_by_cat[trx.name] = [None] * len(range_desc)
         month_idx = range_desc.index(trx.month)
         trx_by_cat[trx.name][month_idx] = round(trx.sum, 2)
+    
+    for cat in cat_range:
+        avg_by_cat[cat] = normal_amt(sum(filter(None, (trx_by_cat[cat]))) / len(trx_by_cat[cat]))
 
     return render_template('index.html', title='Mooney', form=form, 
         balance_by_type=balance_by_type, range_desc=range_desc,
-        cat_range=cat_range, bdgt_range=bdgt_range, trx_by_cat=trx_by_cat)
+        cat_range=cat_range, bdgt_range=bdgt_range, trx_by_cat=trx_by_cat, avg_by_cat=avg_by_cat)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     form = LoginForm()
-    if form.validate_on_submit():
-        user = User.query.filter_by(username=form.username.data).first()
-        if user is None or not user.check_password(form.password.data):
+    
+    if request.method == 'POST':    
+        if form.validate_on_submit():
+            user_ = form.username.data
+            pass_ = form.password.data
+            rememb_ = form.remember_me.data
+        
+        try:
+            input = request.get_json()
+            user_ = input['user']
+            pass_ = input['password']
+            rememb_ = input['remember_me']
+        except:
+            pass
+        
+        user = User.query.filter_by(username=user_).first()
+        if user is None or not user.check_password(pass_):
             flash('Invalid username or password')
             return redirect(url_for('login'))
-        login_user(user, remember=form.remember_me.data)
+        login_user(user, remember=rememb_)
         next_page = request.args.get('next')
         if not next_page or url_parse(next_page).netloc != '':
             next_page = url_for('index')
-        return redirect(next_page)
+            return redirect(next_page)
+    
     return render_template('login.html', title='Sign In', form = form)
 
 @app.route('/logout')
@@ -191,23 +210,41 @@ def categories():
 @login_required
 def add_transaction():
     form = TransactionForm()
-    if form.validate_on_submit():
+
+    if request.method == 'POST':
+        if form.validate_on_submit():
         #we have 3 forms.fields for category given the new layout, only one can be true
-        amt = form.amount.data
+            amount_ = form.amount.data
+            cat_ = Category.query.filter_by(id=form.category.data.id).first()
+            account_ = form.account.data.id
+            currency_ = form.account.data.currency
+            date_ = form.date.data
+            description_ = form.description.data
+            tag_ = form.tag.data
+        
+        else:
+            try: 
+                input = request.get_json()
+                amount_ = input['amount']
+                account_ = input['account']
+                cat_ = Category.query.filter_by(id=input['category']).first()
+                currency_ = input['currency']
+                date_ = input['date']
+                description_ = input['description']
+                tag_ = input['tag']
+            except:
+                pass
         
         #Normalizing amount, in Income always positive, if Expense always negative
-        if form.cat_expense.data:
-            cat = form.cat_expense.data.id
-            amt = -abs(amt)
-        elif form.cat_income.data:
-            cat = form.cat_income.data.id
-            amt = abs(amt)
-        else:
-            cat = form.category.data.id
+        cat = cat_.id
+        if cat_.type == 'Expense':
+            amt = -abs(amount_)
+        elif cat_.type == 'Income':
+            amt = abs(amount_)
         
-        transaction = Transaction(account=form.account.data.id, category=cat, amount=amt, 
-                                  currency=form.account.data.currency, date=form.date.data, 
-                                  description=form.description.data, tag=form.tag.data)
+        transaction = Transaction(account=account_, category=cat, amount=amt, 
+                                  currency=currency_, date=date_, 
+                                  description=description_, tag=tag_)
         db.session.add(transaction)
         db.session.commit()
         flash('A transaction was just added!')
@@ -217,7 +254,8 @@ def add_transaction():
         if form.submit_plus.data:
             next_page = url_for('add_transaction')
         return redirect(next_page)
-    #showing not limited to the user
+        #showing not limited to the user
+    
     return render_template('add_transaction.html', title='Add Transaction', form=form)
 
 @app.route('/add_transfer', methods=['GET', 'POST'])
