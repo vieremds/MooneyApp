@@ -33,7 +33,7 @@ def get_balance_by_type(types=Config.ACCOUNT_TYPES):
 
             balance_by_type[type] = normal_amt(sum(balances))
 
-        else:
+        elif type in ['Giro','Liability']:
             account = [id[0] for id in db.session.query(Account.id).filter_by(type=type).filter_by(user_id=current_user.id).all()]
 
             #BALANCE ON TOP STUFF
@@ -45,11 +45,14 @@ def get_balance_by_type(types=Config.ACCOUNT_TYPES):
             transfer_balance = round(float(trf_positive or 0.00), 2) - round(float(trf_negative or 0.00),2)
             balance = round(float(start_balance or 0.00),2) + round(float(transaction_balance or 0.0),2) + transfer_balance
             balance_by_type[type] = normal_amt(balance)
+
+        elif type == 'History':
+            pass
     
     return balance_by_type
 
 def get_single_balance(account):
-    if account.type != 'Investment':
+    if account.type in ['Giro','Liability']:
         transaction_balance = Transaction.query.filter(Transaction.account.in_([account.id])).with_entities(func.sum(Transaction.amount).label('total')).first().total
         trf_negative = Transfer.query.filter(Transfer.source_account.in_([account.id])).with_entities(func.sum(Transfer.amount).label('total')).first().total
         trf_positive = Transfer.query.filter(Transfer.target_account.in_([account.id])).with_entities(func.sum(Transfer.amount).label('total')).first().total
@@ -58,7 +61,7 @@ def get_single_balance(account):
         transfer_balance = round(float(trf_positive or 0.00),2) - round(float(trf_negative or 0.00),2)
         balance = round(float(start_balance or 0.00),2) + round(float(transaction_balance or 0.00),2) + transfer_balance
 
-    else:
+    elif account.type == 'Investment':
         balance = normal_amt(account.start_balance)
         
         try:
@@ -71,6 +74,9 @@ def get_single_balance(account):
             last_key, last_value = acc_.popitem()
             balance = normal_amt(last_value[0])
     
+    elif account.type == 'History':
+        balance = 0.00
+
     return balance
 
 def get_category_balance(start_date, end_date):
@@ -130,7 +136,6 @@ def get_month_dates(st_date='', ed_date='', get_previous=False):
     return start_date, end_date
 
 def get_balance_at_eom(accounts, month_range):
-    #only covering Investment accounts for now
 
     acc_trimmed = {}
     acc_range = []
@@ -158,7 +163,7 @@ def get_balance_at_eom(accounts, month_range):
                     else:
                         if idx-1 >= 0:
                             acc_trimmed[acc.name][m] = normal_amt(acc_trimmed[acc.name][month_range[idx-1]])
-        else:
+        elif acc.type in ['Giro','Liability']:
             for idx, m in enumerate(month_range):
                 a, endDate = get_month_dates(st_date =datetime.strptime(m,'%Y-%m'), ed_date = datetime.strptime(m,'%Y-%m'))
                 transaction_balance = db.session.query(func.sum(Transaction.amount)).filter(Transaction.account.in_([acc.id])).filter(Transaction.date<=endDate).first()
@@ -170,6 +175,9 @@ def get_balance_at_eom(accounts, month_range):
                 balance = normal_amt(start_balance[0]) + normal_amt(transaction_balance[0]) + transfer_balance
 
                 acc_trimmed[acc.name][m] = normal_amt(balance)
+
+        elif acc.type == 'History':
+            pass
 
     return acc_trimmed, acc_range
 

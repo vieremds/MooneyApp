@@ -6,7 +6,7 @@ class Config(object):
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'postgresql://localhost/postgres')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DEBUG = True
-    ACCOUNT_TYPES = ['Giro','Liability','Investment']
+    ACCOUNT_TYPES = ['Giro','Liability','Investment','History']
     CURRENCIES = [('EUR', 'Euro'), ('BRL', 'Brasilian-Real'), ('USD', 'Dollar'), ('GBP','British-Pounds')]
     CATEGORY_TYPES = ['All','Income','Expense']
     LOG_TO_STDOUT = os.environ.get('LOG_TO_STDOUT')
