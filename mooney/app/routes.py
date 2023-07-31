@@ -215,7 +215,10 @@ def add_transaction():
         if form.validate_on_submit():
         #we have 3 forms.fields for category given the new layout, only one can be true
             amount_ = form.amount.data
-            cat_ = Category.query.filter_by(id=form.category.data.id).first()
+            try:
+                cat_ = Category.query.filter_by(id=form.cat_income.data.id).first()
+            except AttributeError: 
+                cat_ = Category.query.filter_by(id=form.cat_expense.data.id).first()
             account_ = form.account.data.id
             currency_ = form.account.data.currency
             date_ = form.date.data
