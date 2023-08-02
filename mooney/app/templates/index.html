@@ -69,6 +69,7 @@
                 <th>{{ i }}</th>
                 {% endfor %}
               {% endif %}
+              <th rowspan=2>Average</th>
             </tr>
           </thead>
           <tbody>
@@ -87,6 +88,7 @@
                     {% endif %}
                     <td>{{ "€ %.2f" % sum }}</td>
                   {% endfor %}
+                  <td>{{ "€ %.2f" % avg_by_cat.get(cat) }}</td>
                 </tr>
               {% endfor %}
             {% endif %}
