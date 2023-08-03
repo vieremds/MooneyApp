@@ -48,13 +48,18 @@
   <br>
   <br>
   <div>
-    <canvas id="GiroBarChart" style="width:100%;max-width:500px;margin: 0 auto;"></canvas>
+    <canvas id="GiroBarChart" style="width:100%;max-width:500px;height:400px;margin: 0 auto;"></canvas>
   </div>
   <br>
   <br>
   <div class="row" style="display: flex;">
-    <div class="col-md-6"><canvas id="IncomePieChart" style="width:100%;max-width:700px;"></canvas></div>
-    <div class="col-md-6"><canvas id="ExpensePieChart" style="width:100%;max-width:700px;"></canvas></div>
+    <div class="col-md-6"><canvas id="IncomePieChart" style="width:100%;max-width:400px;margin: 0 auto;"></canvas></div>
+    <div class="col-md-6"><canvas id="ExpensePieChart" style="width:100%;max-width:400px;margin: 0 auto;"></canvas></div>
+  </div>
+  <br>
+  <br>
+  <div class="chartSankey">
+    <canvas id="chartSankey" style="width:100%;max-width:700px;height:400px;margin: 0 auto;"></canvas>
   </div>
   <br>
   <br>
@@ -64,8 +69,65 @@
   <input type="hidden" name="scrollPosition" class="scrollPosition" />
 {% endblock %}
 {% block scripts %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey"></script>
 <script type="text/javascript">
+    
+    function loadSankeyChart(income_keys, income_values, expense_keys, expense_values) {
+        var lab = [...income_keys, ...expense_keys];
+
+        var colors = {}
+
+        var colorArray = ['#FF6633', '#FFB399', '#FF33FF', '#FFFF99', '#00B3E6', 
+            '#E6B333', '#3366E6', '#999966', '#99FF99', '#B34D4D',
+            '#80B300', '#809900', '#E6B3B3', '#6680B3', '#66991A', 
+            '#FF99E6', '#CCFF1A', '#FF1A66', '#E6331A', '#33FFCC',
+            '#66994D', '#B366CC', '#4D8000', '#B33300', '#CC80CC', 
+            '#66664D', '#991AFF', '#E666FF', '#4DB3FF', '#1AB399',
+            '#E666B3', '#33991A', '#CC9999', '#B3B31A', '#00E680', 
+            '#4D8066', '#809980', '#E6FF80', '#1AFF33', '#999933',
+            '#FF3380', '#CCCC00', '#66E64D', '#4D80CC', '#9900B3', 
+            '#E64D66', '#4DB380', '#FF4D4D', '#99E6E6', '#6666FF'];
+
+        var datInc = income_keys.map(function(val, ind) {
+            if (Math.abs(income_values.at(ind)) > 0) {
+            colors[val] = colorArray.at(ind);
+            return {from: val, to: "Income", flow: Math.abs(income_values.at(ind))}
+            } else {
+                return {}
+            }
+        });
+        var datExp = expense_keys.map(function(val, ind) {
+            if (Math.abs(expense_values.at(ind)) > 0) {
+            colors[val] = colorArray.at(-ind);
+            return {from: "Income", to: val, flow: Math.abs(expense_values.at(ind))}
+            } else {
+                return {}
+            }
+        });
+        var dat = [...datInc, ...datExp];
+
+        function getColor(name) {
+            return colors[name] || "green";
+            }
+        
+        var chart = new Chart("chartSankey", {
+            type: "sankey",
+            data: {
+                datasets: [
+                {
+                    data: dat,
+                    labels: lab,
+                    colorFrom: (c) => getColor(c.dataset.data[c.dataIndex].from),
+                    colorTo: (c) => getColor(c.dataset.data[c.dataIndex].to),
+                    borderWidth: 2,
+                    borderColor: 'black'
+                }
+                ]
+            }
+            });
+        };
+
     function load_bar_chart(type, val) {
         const GiroBarChart = new Chart( "GiroBarChart", {
         type: 'bar',
@@ -78,14 +140,16 @@
             }]
         },
         options: {
-            title: {
-                display: true,
-                text: 'Monthly view of Giro Position',
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Monthly view of Giro Position',
+                },
+                legend: {
+                    display: false,
+                },
+                backgroundColor: '#dcdcdc'
             },
-            legend: {
-                display: false,
-            },
-            backgroundColor: '#dcdcdc',
             animation: {
                 duration: 1500, // set the animation duration in milliseconds
                  easing: 'easeInOutQuart' // set the easing function for the animation
@@ -111,12 +175,14 @@
             }]
         },
         options: {
-            title: {
-                display: true,
-                text: 'Monthly view of Income',
-            },
-            legend: {
-                display: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Monthly view of Income',
+                },
+                legend: {
+                    display: false,
+                }
             },
             //backgroundColor: '#dcdcdc',
             animation: {
@@ -137,12 +203,14 @@
             }]
         },
         options: {
-            title: {
-                display: true,
-                text: 'Monthly view of Expense',
-            },
-            legend: {
-                display: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Monthly view of Expense',
+                },
+                legend: {
+                    display: false,
+                }
             },
             //backgroundColor: '#dcdcdc',
             animation: {
@@ -169,6 +237,8 @@
 		  '#E64D66', '#4DB380', '#FF4D4D', '#99E6E6', '#6666FF'];
     load_pie_chart(income_keys, income_values, expense_keys, expense_values);
 
+    loadSankeyChart(income_keys, income_values, expense_keys, expense_values);
+
     function load_inv_bar_chart() {
         const InvestBarChart = new Chart( "InvestBarChart", {
             type: 'bar',
@@ -177,12 +247,14 @@
                 datasets: dataset
             },
             options: {
-                title: {
-                    display: true,
-                    text: 'Investment Overview',
-                },
-                legend: { 
-                    position: 'bottom' 
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Investment Overview',
+                    },
+                    legend: { 
+                        position: 'bottom' 
+                    }
                 },
                 backgroundColor: '#dcdcdc',
                 animation: {
@@ -192,19 +264,19 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    xAxes: [{
+                    x:{
                         stacked: true,
                         gridLines: {
                         display: false,
                         }
-                    }],
-                    yAxes: [{
+                    },
+                    y:{
                         stacked: true,
                         ticks: {
                         beginAtZero: true,
                         },
                         type: 'linear',
-                    }]
+                    }
                 },
             }
         }
