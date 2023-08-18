@@ -8,6 +8,8 @@ import collections
 from datetime import datetime, date, timedelta
 import calendar
 import yfinance
+import tabula
+import pandas as pd
 
 
 def get_balance_by_type(types=Config.ACCOUNT_TYPES):
@@ -196,3 +198,51 @@ def fx_base(amount, currency, base='EUR'):
     else:
         amt = normal_amt(amount)
     return amt
+
+def readStatement(file, categories, pages='all', area=[10,0,80,100], columns=[7,15,80], regex="([0-3][0-9].[0-1][0-9])", columnsName=['date', 'date2', 'description', 'amount'], dateFormat='%d.%m', filterOff='ZAHLUNG.*'): 
+    try:
+        dfs = tabula.read_pdf(file, pages=pages, relative_area=True, relative_columns=True, area=area, columns=columns, java_options=[
+        "-Dorg.slf4j.simpleLogger.defaultLogLevel=off",
+        "-Dorg.apache.commons.logging.Log=org.apache.commons.logging.impl.NoOpLog"])
+        
+        #merge dfs
+        df = pd.concat(dfs, ignore_index=True)
+
+        #renameColumns
+        df.columns = columnsName
+    except ValueError:
+        dfs = tabula.read_pdf(file, pages=2, relative_area=True, relative_columns=True, area=[10,12,90,100], columns=[26,37,79,91], java_options=[
+        "-Dorg.slf4j.simpleLogger.defaultLogLevel=off",
+        "-Dorg.apache.commons.logging.Log=org.apache.commons.logging.impl.NoOpLog"])
+        regex = "([0-3][0-9].[0-1][0-9].[2][0-2][0-9][0-9])"
+        columnsName = ['date', 'date2', 'description', 'amount', 'amount2']
+        dateFormat = '%d.%m.%Y'
+
+        #merge dfs
+        df = pd.concat(dfs, ignore_index=True)
+
+        #renameColumns
+        df.columns = columnsName
+
+    #filter stuff out
+    df = df.dropna()
+    df = df[df["date"].str.match(regex)]
+    df = df[~df["description"].str.contains(filterOff, case=False)]
+    df = df.drop(columns=['date2','amount2'], errors='ignore')
+
+    #Reset index
+    df = df.reset_index(drop=True)
+
+    #Adjust datatypes
+    df['date'] = pd.to_datetime(df['date'], format=dateFormat, dayfirst=True) + pd.DateOffset(year=2023)
+    df['date'] = df['date'].dt.date
+    df['amount'] = pd.to_numeric(df['amount'].str.replace(',','.'), downcast='float')
+
+    #Get all category name for the user
+    categoryList = [] 
+    for category in categories:
+        categoryList.append(category.name)
+
+    df['category'] = [categoryList for _ in df.index]
+
+    return df.to_json(double_precision=2, orient='records', date_format='iso',  date_unit='s')

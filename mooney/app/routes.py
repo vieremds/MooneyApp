@@ -1,4 +1,4 @@
-from flask import render_template, flash, redirect, url_for, request, session
+from flask import render_template, flash, redirect, url_for, request, session, jsonify
 from app import app, db, cache
 from app.forms import LoginForm, RegistrationForm, AddAccountForm, CategoryForm, TransactionForm, TransferForm, SelectDateForm, DateTypeForm, UpdateBalanceForm, DateAccountCategoryForm, AssetForm
 from flask_login import current_user, login_user, logout_user, login_required
@@ -10,12 +10,13 @@ from config import Config
 import pandas as pd 
 import json
 import collections
-from .func import get_balance_by_type, get_single_balance, get_category_balance, get_category_type_balance, get_month_dates, get_balance_at_eom, normal_amt, fx_base
+from .func import get_balance_by_type, get_single_balance, get_category_balance, get_category_type_balance, get_month_dates, get_balance_at_eom, normal_amt, fx_base, readStatement
 from datetime import datetime, date, timedelta  
 import calendar
 from dateutil.relativedelta import relativedelta
 import yfinance
 import traceback
+from fileinput import filename
 
 @app.route('/')
 @app.route('/index', methods=['GET', 'POST'])
@@ -226,11 +227,20 @@ def add_transaction():
             tag_ = form.tag.data
         
         else:
-            try: 
+            try:
+                server = True 
                 input = request.get_json()
                 amount_ = input['amount']
-                account_ = input['account']
-                cat_ = Category.query.filter_by(id=input['category']).first()
+                if isinstance(input['account'],int):
+                    #even ints are queried so we can normalize for all cases
+                    account_ = Account.query.filter_by(id=input['account']).first()
+                else:
+                    account_ = Account.query.filter_by(name=input['account']).first()
+                if isinstance(input['category'],int):
+                    #even ints are queried so we can normalize for all cases
+                    cat_ = Category.query.filter_by(id=input['category']).first()
+                else:
+                    cat_ = Category.query.filter_by(name=input['category']).first()
                 currency_ = input['currency']
                 date_ = input['date']
                 description_ = input['description']
@@ -239,26 +249,33 @@ def add_transaction():
                 pass
         
         #Normalizing amount, in Income always positive, if Expense always negative
+        account = account_.id
         cat = cat_.id
         if cat_.type == 'Expense':
             amt = -abs(amount_)
         elif cat_.type == 'Income':
             amt = abs(amount_)
         
-        transaction = Transaction(account=account_, category=cat, amount=amt, 
+        transaction = Transaction(account=account, category=cat, amount=amt, 
                                   currency=currency_, date=date_, 
                                   description=description_, tag=tag_)
         db.session.add(transaction)
         db.session.commit()
-        flash('A transaction was just added!')
-        next_page = request.args.get('next')
-        if not next_page or url_parse(next_page).netloc != '':
-            next_page = url_for('transactions')
-        if form.submit_plus.data:
-            next_page = url_for('add_transaction')
-        return redirect(next_page)
-        #showing not limited to the user
-    
+        
+        #Return for inPage request with next Page
+        if not server:
+            flash('A transaction was just added!')
+            next_page = request.args.get('next')
+            if not next_page or url_parse(next_page).netloc != '':
+                next_page = url_for('transactions')
+            if form.submit_plus.data:
+                next_page = url_for('add_transaction')
+            return redirect(next_page)
+        
+        #Return for server request with Response
+        else:
+            return "200"
+        
     return render_template('add_transaction.html', title='Add Transaction', form=form)
 
 @app.route('/add_transfer', methods=['GET', 'POST'])
@@ -655,12 +672,36 @@ def asset_val(symbol):
     except UnboundLocalError:
         return 'False'
 
+@app.route('/statements', methods=['GET', 'POST'])
+@login_required
+def statements():
+    #Retrieve User Accounts
+    accounts = Account.query.filter_by(user_id=current_user.id).all()
 
-#INPUT MY PAST DATA*
-#CURRENCY LOGIC, CONVERSION TO DEFAULT BASED ON MARKET CURERNT DATA
-#ASSET LOGIC, INSIDE INVESTMENT ACCOUNT, CREATE ASSET LOGIC TO STORE AND RETRIEVE MARKET VALUE - CACHING LATEST AVAILABLE
+    if request.method == 'POST':  
+        #Retrieve the file, and keep the name for feedback
+        f = request.files['file']
+        f.save(f.filename) 
+
+        #Retrieve User Categories
+        categories = Category.query.filter_by(user_id=current_user.id).filter_by(type='Expense')
+
+        df = readStatement(f, categories)
+        return render_template("statements.html", title='Statements', name=f.filename, transactions=df, accounts=accounts)
+    
+    #CONFIRM SUBMISSION VIA API
+    #GET PROGRESS BAR - NICE TO HAVE    
+    #HANDLE IMPORT TRANSACTIONS WITH API CALLS TO ADD TRANSACTION
+    return render_template('statements.html', title='Statements', transactions=[{}], accounts=accounts)
+
+
+
+#BACKUP DB - to be downloaded
+#RESTORE DB - from file
+#RECURRENT TRANSACTIONS
+#IMPLEMENT TESTS
 #SOMETHING ON BUDGET, SAVE BUDGET, REVIEW BUDGET (ASSERTIVENESS), LOOK INTO AVERAGES, SAVINGS PLAN
-#IMPLEMENT ERRORS AS PER MEGATUTORIAL
+#NOTES across pages, calc
 #IMPLEMENT FORGOT PASSWORD AND EMAIL VALIDATION AS PER MEGATUTORIAL
 #IMPLEMENT LOGGING
 #IMPLEMENT BLUEPRINT AS PER MEGATUTORIAL
