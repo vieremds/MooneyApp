@@ -220,7 +220,7 @@ def add_transaction():
                 cat_ = Category.query.filter_by(id=form.cat_income.data.id).first()
             except AttributeError: 
                 cat_ = Category.query.filter_by(id=form.cat_expense.data.id).first()
-            account_ = form.account.data.id
+            account_ = Account.query.filter_by(id=form.account.data.id).first()
             currency_ = form.account.data.currency
             date_ = form.date.data
             description_ = form.description.data
