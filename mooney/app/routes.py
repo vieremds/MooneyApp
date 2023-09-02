@@ -486,7 +486,6 @@ def transactions_edit():
             trx.tag = request.form['tag']
             trx.description = request.form['description']
             if request.form['action'] == 'saveNew':
-                trx.id = ''
                 db.session.add(trx)
             db.session.commit()
         except exc.SQLAlchemyError:
