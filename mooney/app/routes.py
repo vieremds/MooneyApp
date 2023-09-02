@@ -487,7 +487,7 @@ def transactions_edit():
             trx.description = request.form['description']
             if request.form['action'] == 'saveNew':
                 trx.id = ''
-                db.session.Add(trx)
+                db.session.add(trx)
             db.session.commit()
         except exc.SQLAlchemyError:
                 flash('At least one of the edit fields do not match its required datatype. Try again')
