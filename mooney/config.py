@@ -3,7 +3,8 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config(object):
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'you-will-never-guess'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'postgresql://localhost/postgres')
+    #DB URL should come on deployment, or be by default the dev env one
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'postgresql://mooney_root:rBuV9pTRG?Ik>LMK{cbZ3d{TR]K4@mooney-db-dev.chqdptrep2oh.us-east-2.rds.amazonaws.com/postgres')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DEBUG = True
     ACCOUNT_TYPES = ['Giro','Liability','Investment','History']

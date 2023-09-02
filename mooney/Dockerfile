@@ -32,7 +32,6 @@ RUN venv/bin/pip3 install -r requirements.txt
 RUN venv/bin/pip3 install gunicorn
 
 COPY app app
-COPY migrations migrations
 COPY mooney.py config.py boot.sh ./
 RUN chmod +x boot.sh
 RUN cp boot.sh /.
