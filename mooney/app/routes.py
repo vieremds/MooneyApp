@@ -211,6 +211,7 @@ def categories():
 @login_required
 def add_transaction():
     form = TransactionForm()
+    server = False
 
     if request.method == 'POST':
         if form.validate_on_submit():
