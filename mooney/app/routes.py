@@ -465,7 +465,7 @@ def transactions_edit():
     if request.form['action'] == 'delete':
         db.session.delete(trx)
         db.session.commit()
-    elif request.form['action'] == 'save':
+    elif request.form['action'] in ['save', 'saveNew']:
         try:
             try: 
                 trx.account = db.session.query(Account.id).filter_by(user_id=current_user.id).filter_by(name=request.form['account']).first()[0]
@@ -485,6 +485,9 @@ def transactions_edit():
             trx.created_at = datetime.utcnow()
             trx.tag = request.form['tag']
             trx.description = request.form['description']
+            if request.form['action'] == 'saveNew':
+                trx.id = ''
+                db.session.Add(trx)
             db.session.commit()
         except exc.SQLAlchemyError:
                 flash('At least one of the edit fields do not match its required datatype. Try again')
