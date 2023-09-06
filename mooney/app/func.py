@@ -236,6 +236,7 @@ def readStatement(file, categories, pages='all', area=[10,0,80,100], columns=[7,
     #Adjust datatypes
     df['date'] = pd.to_datetime(df['date'], format=dateFormat, dayfirst=True) + pd.DateOffset(year=2023)
     df['date'] = df['date'].dt.date
+    df['amount'].str.strip()
     df['amount'] = pd.to_numeric(df['amount'].str.replace(',','.'), downcast='float')
 
     #Get all category name for the user
