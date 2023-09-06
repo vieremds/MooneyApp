@@ -236,9 +236,10 @@ def readStatement(file, categories, pages='all', area=[10,0,80,100], columns=[7,
     #Adjust datatypes
     df['date'] = pd.to_datetime(df['date'], format=dateFormat, dayfirst=True) + pd.DateOffset(year=2023)
     df['date'] = df['date'].dt.date
-    df['amount'] = df['amount'].str.strip()
-    df['amount'] = pd.to_numeric(df['amount'].str.replace(',','.'), downcast='float')
-
+    try:
+        df['amount'] = pd.to_numeric(df['amount'].str.replace(',','.').str.replace(' ',''), downcast='float')
+    except ValueError as e:
+        print(f"An exception occurred when handling the amount {str(e)}")
     #Get all category name for the user
     categoryList = [] 
     for category in categories:
